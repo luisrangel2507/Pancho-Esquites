@@ -59,6 +59,8 @@ const DocArt = () => <svg viewBox="0 0 160 110" className="art sm">
   <path d="M118 22l12-8M122 38l16-2M120 54l10 6" stroke="#9A958A" strokeWidth="4" strokeLinecap="round" />
 </svg>;
 
+// monto corto para encima de las barras: $980, $1.2k
+const short = (cents: number) => { const v = Math.round(cents / 100); return v >= 1000 ? `$${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : `$${v}`; };
 const hr = (h: number) => `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`;
 
 function Bars({ rows, fmt }: { rows: { label: string; value: number; sub?: string }[]; fmt: (n: number) => string }) {
@@ -148,7 +150,7 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
         {view.peak && <Sec ic={R.clock} title="Ventas por hora">
           <p className="muted">Hora pico: <b>{view.peak.hour % 12 || 12}{view.peak.hour < 12 ? ' am' : ' pm'}</b> · {mx(view.peak.cents)}</p>
           <div className="vbars">{view.full.map(h => <div key={h.hour} className="vb" title={`${mx(h.cents)} · ${h.tickets} tickets`}>
-            <div className={'vb-fill' + (h.hour === view.peak!.hour ? ' pk' : '')} style={{ height: `${(h.cents / view.maxH) * 100}%` }} />
+            <div className="vb-bar"><em>{h.cents > 0 ? short(h.cents) : ''}</em><div className={'vb-fill' + (h.hour === view.peak!.hour ? ' pk' : '')} style={{ height: `calc((100% - 16px) * ${h.cents / view.maxH})` }} /></div>
             <span>{hr(h.hour)}</span></div>)}</div>
         </Sec>}
 

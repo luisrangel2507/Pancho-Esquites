@@ -155,11 +155,14 @@ body:has(.pin){background:var(--pin-bg)}
 .hb-track{height:10px;background:#EADBB4;border-radius:6px;margin-top:4px;overflow:hidden}
 .hb-fill{height:100%;background:linear-gradient(90deg,#1B7F4A,#2FB36B);border-radius:6px}
 .hb small{color:var(--muted);font-size:12px}
-.vbars{display:flex;align-items:flex-end;gap:4px;height:130px;margin-top:6px}
+.vbars{display:flex;align-items:flex-end;gap:3px;height:160px;margin-top:6px}
 .vb{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
 .vb-fill{width:100%;min-height:2px;background:#C9B98A;border-radius:5px 5px 0 0}
 .vb-fill.pk{background:var(--gold)}
 .vb span{font-size:10px;color:var(--muted)}
+.vb em{font-style:normal;font-size:10px;font-weight:700;color:#0B4A2A;line-height:1;white-space:nowrap;letter-spacing:-.3px}
+.vb-bar{flex:1;width:100%;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px}
+.vb-bar .vb-fill{flex:0 0 auto}
 .sale small{color:var(--muted);font-weight:400}
 .sale.void{opacity:.55}
 .sale span:last-child{text-align:right}
