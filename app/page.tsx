@@ -166,8 +166,6 @@ export default function Caja() {
           return <div key={id}>
             <div className="row"><span>{v.qty} × {p.name}</span>
               <span><button onClick={() => add(p.id, -1)}>−</button> <button onClick={() => add(p.id, 1)}>+</button></span></div>
-            <input id={`note-${id}`} placeholder="Nota (sin mayonesa, extra chile…)" value={v.note} maxLength={120}
-              onChange={e => setCart(c => ({ ...c, [id]: { ...c[+id], note: e.target.value } }))} />
           </div>;
         })}
         <div className="cats" style={{ gridTemplateColumns: 'repeat(3,1fr)', margin: '10px 0' }}>

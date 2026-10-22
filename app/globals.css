@@ -100,3 +100,7 @@ body{overscroll-behavior-y:none}
 
 body:has(.auth){background:#FAE6B8}
 body:has(.pin){background:var(--pin-bg)}
+
+.cats button,.menu button{color:var(--ink)}
+.menu button{color:#fff}
+.sheet button{font-family:inherit}
