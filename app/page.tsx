@@ -8,6 +8,7 @@ const USER_DOMAIN = 'esquites.com';
 const AUTO_USER = process.env.NEXT_PUBLIC_CAJA_USER;
 const AUTO_PASS = process.env.NEXT_PUBLIC_CAJA_PASS;
 const toEmail = (u: string) => u.includes('@') ? u.trim() : `${u.trim().toLowerCase()}@${USER_DOMAIN}`;
+const MAX_ADMINS = 2;
 const PIN_LEN = 6; // el PIN es de exactamente 6 dígitos y se verifica una sola vez, al completarlo
 const IDLE_MS = 30 * 60 * 1000; // cierra el turno tras 30 min sin uso
 
@@ -169,7 +170,7 @@ export default function Caja() {
       </div>
 
       {reports && <Reports pin={pin} onClose={() => setReports(false)} />}
-      {staff && <Staff pin={pin} onClose={() => setStaff(false)} onPassed={() => { setStaff(false); setEmp(null); setPin(''); setCart({}); }} />}
+      {staff && <Staff pin={pin} meId={emp.employee_id} onClose={() => setStaff(false)} />}
 
       {checkout && <div className="sheet cobro" onClick={e => e.target === e.currentTarget && setCheckout(false)}><div className="panel">
         <div className="grab" />
@@ -303,7 +304,7 @@ const S = {
 
 type Person = { id: string; name: string; role: 'cajero' | 'admin'; active: boolean };
 
-function Staff({ pin, onClose, onPassed }: { pin: string; onClose: () => void; onPassed: () => void }) {
+function Staff({ pin, meId, onClose }: { pin: string; meId: string; onClose: () => void }) {
   const [list, setList] = useState<Person[]>([]);
   const [name, setName] = useState(''); const [np, setNp] = useState('');
   const [role, setRole] = useState<'cajero' | 'admin'>('cajero');
@@ -324,11 +325,18 @@ function Staff({ pin, onClose, onPassed }: { pin: string; onClose: () => void; o
     if (!p) { setName(''); setNp(''); }
     setEdit(null); setEp(''); load();
   }
-  const hasAdmin = list.some(p => p.role === 'admin' && p.active);
+  const hasAdmin = list.filter(p => p.role === 'admin' && p.active).length >= MAX_ADMINS;
   async function makeAdmin(p: Person) {
-    if (!confirm(`¿Pasar el mando a ${p.name}? Tú quedarás como cajero y se cerrará tu turno.`)) return;
+    if (!confirm(`¿Dar permisos de administrador a ${p.name}?`)) return;
+    setErr('');
     const { error } = await supabase.rpc('staff_make_admin', { p_admin_pin: pin, p_to: p.id });
-    if (error) setErr(error.message); else onPassed();
+    if (error) setErr(error.message); else load();
+  }
+  async function demote(p: Person) {
+    if (!confirm(`¿Quitar permisos de administrador a ${p.name}? Quedará como cajero.`)) return;
+    setErr('');
+    const { error } = await supabase.rpc('staff_upsert', { p_admin_pin: pin, p_id: p.id, p_name: p.name, p_pin: null, p_role: 'cajero', p_active: true });
+    if (error) setErr(error.message); else load();
   }
   async function remove(p: Person) {
     if (!confirm(`¿Borrar a ${p.name}? No se puede deshacer.`)) return;
@@ -361,7 +369,8 @@ function Staff({ pin, onClose, onPassed }: { pin: string; onClose: () => void; o
               : <button className="b-on" onClick={() => save(p, { active: true })}>{S.power}Activar</button>}
           </div>
         </div>
-        {(p.active && p.role === 'cajero') && <button className="st-mk" onClick={() => makeAdmin(p)}>Hacer admin a {p.name}</button>}
+        {(p.active && p.role === 'cajero' && !hasAdmin) && <button className="st-mk" onClick={() => makeAdmin(p)}>Hacer admin a {p.name}</button>}
+        {(p.active && p.role === 'admin' && p.id !== meId) && <button className="st-mk" onClick={() => demote(p)}>Quitar admin a {p.name}</button>}
         {!p.active && <button className="st-del" onClick={() => remove(p)}>Eliminar a {p.name}</button>}
         {edit === p.id && <div className="st-pin">
           <input inputMode="numeric" maxLength={PIN_LEN} placeholder="Nuevo PIN (6 números)" value={ep} onChange={e => setEp(e.target.value.replace(/\D/g, ''))} />
@@ -389,7 +398,7 @@ function Staff({ pin, onClose, onPassed }: { pin: string; onClose: () => void; o
         <span className="rl-ic gray">{S.gear}</span><div><b>Admin</b><small>Acceso completo a todas las funciones.</small></div>
         <i className={'rd' + (adminRole ? ' ck' : '')}>{adminRole && '✓'}</i></button>
     </div>
-    {hasAdmin && <p className="muted">Ya hay un administrador activo. Para cambiarlo usa "Hacer admin" en un empleado.</p>}
+    {hasAdmin && <p className="muted">Ya hay {MAX_ADMINS} administradores activos. Para dar de alta otro, quita o desactiva uno.</p>}
     <p className="err">{err}</p>
     <button className="regv" disabled={!name.trim() || np.length !== PIN_LEN} onClick={() => save(null, { pin: np })}>{S.userPlusW}Agregar empleado</button>
     <button className="st-close" onClick={onClose}>Cerrar</button>
