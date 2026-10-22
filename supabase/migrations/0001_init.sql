@@ -98,18 +98,18 @@ create index on sales(created_at);
 
 -- ───────── Helpers ─────────
 create or replace function is_admin() returns boolean
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
   select exists(select 1 from admins where user_id = auth.uid());
 $$;
 
 create or replace function is_device() returns boolean
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
   select exists(select 1 from devices where user_id = auth.uid()) or is_admin();
 $$;
 
 -- Verifica PIN con límite de 5 intentos fallidos cada 5 minutos por dispositivo
 create or replace function check_pin(p_pin text) returns employees
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare e employees; fails int;
 begin
   if not is_device() then raise exception 'Dispositivo no autorizado'; end if;
@@ -131,7 +131,7 @@ end $$;
 -- Inicio de sesión del empleado: devuelve solo nombre y rol
 create or replace function pin_login(p_pin text)
 returns table(employee_id uuid, name text, role text)
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare e employees;
 begin
   e := check_pin(p_pin);
@@ -142,7 +142,7 @@ end $$;
 -- p_items: [{"product_id":1,"qty":2,"note":"sin mayonesa"}]
 create or replace function register_sale(p_pin text, p_items jsonb, p_pay text, p_cash_cents int default null)
 returns table(sale_id bigint, total_cents int)
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare e employees; s_id bigint; tot int := 0; it jsonb; pr products;
 begin
   e := check_pin(p_pin);
@@ -176,7 +176,7 @@ end $$;
 
 -- Anular venta: solo con PIN de admin
 create or replace function void_sale(p_admin_pin text, p_sale_id bigint) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare e employees;
 begin
   e := check_pin(p_admin_pin);
@@ -192,7 +192,7 @@ end $$;
 
 -- ───────── API para el admin (sesión de Auth con correo y contraseña) ─────────
 create or replace function admin_upsert_employee(p_id uuid, p_name text, p_pin text, p_role text, p_active boolean)
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = public, extensions as $$
 declare new_id uuid;
 begin
   if not is_admin() then raise exception 'No autorizado'; end if;
@@ -211,7 +211,7 @@ begin
 end $$;
 
 create or replace function admin_inventory_move(p_item text, p_qty numeric, p_kind text) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare cur numeric;
 begin
   if not is_admin() then raise exception 'No autorizado'; end if;
