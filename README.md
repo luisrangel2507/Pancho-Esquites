@@ -31,7 +31,7 @@ Reglas:
    - Primer empleado admin con PIN (desde SQL, una sola vez):
      `insert into employees(name,pin_hash,role) values ('Dueño', crypt('<pin>', gen_salt('bf',10)), 'admin');`
 3. **GitHub** → repo privado, rama `main` protegida.
-4. **Cloudflare Pages** → conectar repo · build `npm run build` · salida `out` ·
+4. **Cloudflare (Workers/Pages)** → conectar repo · build `npm run build` · deploy `npx wrangler deploy` (usa `wrangler.jsonc`, salida `out`) ·
    variables `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 5. **Respaldo**:
    - `age-keygen -o pancho.key` en tu compu → guarda `pancho.key` en tu gestor de contraseñas.
