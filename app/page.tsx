@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, mx, Product, Category, Employee } from '@/lib/supabase';
 
+// Supabase exige un correo: al usuario "caja1" se le agrega este dominio interno
+const USER_DOMAIN = 'pancho.com';
 const IDLE_MS = 30 * 60 * 1000; // cierra el turno tras 30 min sin uso
 
 type Cart = Record<number, { qty: number; note: string }>;
@@ -142,18 +144,18 @@ function Shell({ children }: { children: React.ReactNode }) {
   </div>;
 }
 
-const Mail = () => <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>;
+const UserIcon = () => <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>;
 const Lock = () => <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 
 function DeviceLogin() {
-  const [email, setEmail] = useState(''); const [pass, setPass] = useState(''); const [err, setErr] = useState('');
+  const [user, setUser] = useState(''); const [pass, setPass] = useState(''); const [err, setErr] = useState('');
   async function go() {
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
-    if (error) setErr('Correo o contraseña incorrectos');
+    const { error } = await supabase.auth.signInWithPassword({ email: user.includes('@') ? user.trim() : `${user.trim().toLowerCase()}@${USER_DOMAIN}`, password: pass });
+    if (error) setErr('Usuario o contraseña incorrectos');
   }
   return <Shell>
     <h2>Activar caja</h2><p>Solo se hace una vez por dispositivo.<br />Lo hace el dueño.</p>
-    <div className="field"><Mail /><input id="email" type="email" placeholder="Correo de la caja" value={email} onChange={e => setEmail(e.target.value)} /></div>
+    <div className="field"><UserIcon /><input id="user" type="text" placeholder="Usuario" autoCapitalize="none" autoCorrect="off" autoComplete="username" value={user} onChange={e => setUser(e.target.value)} /></div>
     <div className="field"><Lock /><input id="pass" type="password" placeholder="Contraseña" value={pass} onChange={e => setPass(e.target.value)}
       onKeyDown={e => e.key === 'Enter' && go()} /></div>
     <p className="err">{err}</p>
