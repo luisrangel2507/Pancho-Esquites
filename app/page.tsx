@@ -8,6 +8,7 @@ const USER_DOMAIN = 'esquites.com';
 const AUTO_USER = process.env.NEXT_PUBLIC_CAJA_USER;
 const AUTO_PASS = process.env.NEXT_PUBLIC_CAJA_PASS;
 const toEmail = (u: string) => u.includes('@') ? u.trim() : `${u.trim().toLowerCase()}@${USER_DOMAIN}`;
+const PIN_LEN = 6; // el PIN es de exactamente 6 dígitos y se verifica una sola vez, al completarlo
 const IDLE_MS = 30 * 60 * 1000; // cierra el turno tras 30 min sin uso
 
 type Cart = Record<number, { qty: number; note: string }>;
@@ -255,22 +256,25 @@ function DeviceLogin() {
 }
 
 function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
-  const [pin, setPin] = useState(''); const [err, setErr] = useState('');
+  const [pin, setPin] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   async function press(k: string) {
     setErr('');
-    const p = k === '⌫' ? pin.slice(0, -1) : (pin + k).slice(0, 6);
+    if (busy) return;
+    const p = k === '⌫' ? pin.slice(0, -1) : (pin + k).slice(0, PIN_LEN);
     setPin(p);
-    if (p.length >= 4 && k !== '⌫') {
+    if (p.length === PIN_LEN && k !== '⌫') {
+      setBusy(true);
       const { data, error } = await supabase.rpc('pin_login', { p_pin: p });
+      setBusy(false);
       if (!error && data?.[0]) { onOk(data[0], p); return; }
-      if (p.length === 6 || error?.message.includes('intentos')) { setErr(error?.message ?? 'PIN incorrecto'); setPin(''); }
+      setErr(error?.message ?? 'PIN incorrecto'); setPin('');
     }
   }
   return <div className="pin">
     <div className="hero"><img src="/logo.png" alt="Pancho Esquites" /></div>
     <h1 className="ptitle">Ingresa tu <span>PIN</span></h1>
     <p className="psub">para abrir caja</p>
-    <div className="circles">{Array.from({ length: Math.max(4, pin.length) }, (_, i) => <i key={i} className={i < pin.length ? 'f' : ''} />)}</div>
+    <div className="circles">{Array.from({ length: PIN_LEN }, (_, i) => <i key={i} className={i < pin.length ? 'f' : ''} />)}</div>
     <p className="err">{err}</p>
     <div className="pad2">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) =>
       k ? <button key={i} aria-label={k === '⌫' ? 'Borrar' : k} onClick={() => press(k)}>
@@ -324,19 +328,19 @@ function Staff({ pin, onClose, onPassed }: { pin: string; onClose: () => void; o
           {!p.active && <>{' '}<button onClick={() => remove(p)}>Eliminar</button></>}
         </span></div>
       {edit === p.id && <div>
-        <input inputMode="numeric" maxLength={6} placeholder="Nuevo PIN (4 a 6 números)" value={ep} onChange={e => setEp(e.target.value.replace(/\D/g, ''))} />
-        <button className="primary" onClick={() => save(p, { pin: ep })}>Guardar PIN</button>
+        <input inputMode="numeric" maxLength={PIN_LEN} placeholder="Nuevo PIN (6 números)" value={ep} onChange={e => setEp(e.target.value.replace(/\D/g, ''))} />
+        <button className="primary" disabled={ep.length !== PIN_LEN} onClick={() => save(p, { pin: ep })}>Guardar PIN</button>
       </div>}
     </div>)}
     <h3>Nuevo empleado</h3>
     <input placeholder="Nombre" value={name} onChange={e => setName(e.target.value)} />
-    <input inputMode="numeric" maxLength={6} placeholder="PIN (4 a 6 números)" value={np} onChange={e => setNp(e.target.value.replace(/\D/g, ''))} />
+    <input inputMode="numeric" maxLength={PIN_LEN} placeholder="PIN (6 números)" value={np} onChange={e => setNp(e.target.value.replace(/\D/g, ''))} />
     <div className="cats" style={{ gridTemplateColumns: '1fr 1fr' }}>
       <button className={(hasAdmin || role === 'cajero') ? 'on' : ''} onClick={() => setRole('cajero')}>Cajero</button>
       <button className={!hasAdmin && role === 'admin' ? 'on' : ''} disabled={hasAdmin} onClick={() => setRole('admin')}>Admin</button></div>
     {hasAdmin && <p className="muted">Ya hay un administrador activo. Para cambiarlo usa "Hacer admin" en el empleado.</p>}
     <p className="err">{err}</p>
-    <button className="primary" disabled={!name.trim() || np.length < 4} onClick={() => save(null, { pin: np })}>Agregar</button>
+    <button className="primary" disabled={!name.trim() || np.length !== PIN_LEN} onClick={() => save(null, { pin: np })}>Agregar</button>
     <p><button onClick={onClose}>Cerrar</button></p>
   </div></div>;
 }
