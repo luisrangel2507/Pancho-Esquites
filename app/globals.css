@@ -83,9 +83,9 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--card-bor
 .pad2 svg{width:30px;height:30px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ───── Activar caja ───── */
-.auth{min-height:100dvh;background:#FAE6B8;display:flex;flex-direction:column;align-items:center;overflow-x:hidden}
+.auth{min-height:100vh;min-height:100lvh;padding-bottom:calc(min(100vw,520px)*.5);background:#FAE6B8;display:flex;flex-direction:column;align-items:center;overflow-x:hidden}
 .auth .art-top{width:100%;max-width:520px;display:block;-webkit-mask-image:linear-gradient(#000 92%,transparent);mask-image:linear-gradient(#000 92%,transparent)}
-.auth .art-bot{width:100%;max-width:520px;display:block;margin-top:auto;pointer-events:none;-webkit-mask-image:linear-gradient(transparent,#000 22%);mask-image:linear-gradient(transparent,#000 22%)}
+.auth .art-bot{position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:0;width:100%;max-width:520px;display:block;pointer-events:none;-webkit-mask-image:linear-gradient(transparent,#000 22%);mask-image:linear-gradient(transparent,#000 22%)}
 .auth .body{width:100%;max-width:420px;padding:0 20px;margin-top:4px;position:relative;z-index:1;text-align:center}
 .auth h1,.auth h2{margin:0 0 6px;font-size:32px;font-weight:900;color:#3A1F12}
 .auth p{margin:4px 0 14px;color:#3A1F12}
