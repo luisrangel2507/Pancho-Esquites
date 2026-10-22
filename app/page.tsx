@@ -115,11 +115,13 @@ export default function Caja() {
         {emp.role === 'admin'
           ? <button className="pill" onClick={() => setMenu(m => !m)}>{USER_SVG}Admin ⌄</button>
           : <span className="pill">{USER_SVG}{emp.name}</span>}
+        {menu && <div className="menu-bg" onClick={() => setMenu(false)} />}
         {menu && <div className="menu">
           <button onClick={() => { setEmp(null); setPin(''); setCart({}); setMenu(false); }}>Cerrar turno ({emp.name})</button>
           {emp.role === 'admin' && <button onClick={() => { setReports(true); setMenu(false); }}>Ventas e informes</button>}
           {emp.role === 'admin' && <button onClick={() => { setStaff(true); setMenu(false); }}>Empleados</button>}
           {emp.role === 'admin' && <a href="/admin">Administración</a>}
+          <button className="mx" onClick={() => setMenu(false)}>Cerrar menú</button>
         </div>}
       </header>
       <main className="sheetbody">

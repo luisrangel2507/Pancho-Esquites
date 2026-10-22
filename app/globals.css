@@ -212,3 +212,7 @@ button.pill{font-family:inherit;cursor:pointer}
 .sheet.cobro .err{margin:4px 0}
 
 .cats button:disabled{opacity:.45}
+
+.menu-bg{position:fixed;inset:0;z-index:9;background:transparent}
+.menu{z-index:10}
+.menu .mx{border-top:1px solid rgba(255,255,255,.15);margin-top:4px;color:#A99B8E}
