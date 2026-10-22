@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, mx } from '@/lib/supabase';
 
-// El panel admin exige sesión de Supabase Auth de un usuario en la tabla `admins` (con 2FA activado).
+// El panel admin exige sesión de Supabase Auth de un usuario en la tabla `admins`.
 // Las políticas RLS hacen que, aunque alguien abra esta página, sin ser admin no reciba datos.
 export default function Admin() {
   const [ok, setOk] = useState<boolean | null>(null);
@@ -86,38 +86,16 @@ function Empleados() {
 }
 
 function AdminLogin() {
-  const [email, setEmail] = useState(''); const [pass, setPass] = useState(''); const [code, setCode] = useState('');
-  const [step, setStep] = useState<'pass' | 'mfa' | 'enroll'>('pass'); const [err, setErr] = useState('');
-  const [qr, setQr] = useState(''); const [fid, setFid] = useState('');
+  const [email, setEmail] = useState(''); const [pass, setPass] = useState(''); const [err, setErr] = useState('');
   async function login() {
     setErr('');
     const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
     if (error) return setErr('Correo o contraseña incorrectos');
-    const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (data?.currentLevel === 'aal2') return location.reload();
-    if (data?.nextLevel === 'aal2') return setStep('mfa');
-    // Primer inicio: dar de alta la app autenticadora
-    const { data: en, error: e2 } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
-    if (e2 || !en || en.type !== 'totp') return setErr('No se pudo activar 2FA');
-    setQr(en.totp.qr_code); setFid(en.id); setStep('enroll');
-  }
-  async function verify() {
-    let id = fid;
-    if (!id) { const { data: f } = await supabase.auth.mfa.listFactors(); id = f?.totp?.[0]?.id ?? ''; }
-    if (!id) return setErr('Sin 2FA configurado');
-    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: id, code });
-    if (error) return setErr('Código incorrecto'); location.reload();
+    location.reload();
   }
   return <div className="wrap center"><h2>Administración</h2>
-    {step === 'pass' ? <>
-      <input id="a-email" type="email" placeholder="Correo" value={email} onChange={e => setEmail(e.target.value)} />
-      <input id="a-pass" type="password" placeholder="Contraseña" value={pass} onChange={e => setPass(e.target.value)} />
-      <p className="err">{err}</p><button className="primary" onClick={login}>Entrar</button>
-    </> : <>
-      {step === 'enroll' && <><p>Escanea con Google Authenticator o 1Password</p><img src={qr} alt="Código QR de 2FA" width={200} height={200} /></>}
-      <p>Código de tu app autenticadora</p>
-      <input id="a-code" inputMode="numeric" maxLength={6} value={code} onChange={e => setCode(e.target.value)} />
-      <p className="err">{err}</p><button className="primary" onClick={verify}>Verificar</button>
-    </>}
+    <input id="a-email" type="email" placeholder="Correo" value={email} onChange={e => setEmail(e.target.value)} />
+    <input id="a-pass" type="password" placeholder="Contraseña" value={pass} onChange={e => setPass(e.target.value)} />
+    <p className="err">{err}</p><button className="primary" onClick={login}>Entrar</button>
     <p><a href="/">Volver a la caja</a></p></div>;
 }

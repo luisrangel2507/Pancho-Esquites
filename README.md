@@ -11,7 +11,7 @@ Respaldo nocturno cifrado en **GitHub Actions**. Costo base: $0/mes.
 | Sesión de una caja | Ver menú y registrar ventas con PIN válido | No ve ventas, empleados ni inventario. 5 intentos de PIN cada 5 min. |
 | PIN de un cajero | Cobrar como ese empleado | No puede anular, ni ver reportes. Lo desactivas desde Admin. |
 | La base de datos | PINs con hash bcrypt, ventas | No hay tarjetas ni datos personales de clientes. |
-| Cuenta admin | Necesitan contraseña **y** código 2FA | `is_admin()` exige nivel `aal2`. |
+| Cuenta admin | Necesitan correo y contraseña del admin | Usa una contraseña larga y única solo para esto. |
 
 Reglas:
 - **Nunca** subas la `service_role` key a Cloudflare, GitHub ni al código. Este proyecto no la usa.
@@ -24,11 +24,10 @@ Reglas:
 1. **Supabase** → proyecto nuevo (región `us-east` o la más cercana).
    - SQL Editor: correr `supabase/migrations/0001_init.sql` y luego `0002_seed.sql`.
    - Authentication → Providers: desactivar "Allow new users to sign up".
-   - Authentication → MFA: activar TOTP.
    - Storage: bucket público `products` (solo lectura pública; subir solo admin).
 2. **Usuarios** (Authentication → Users → Add user):
    - `caja@tudominio` → `insert into devices(user_id,label) values ('<uuid>','Caja 1');`
-   - Dueño → `insert into admins(user_id) values ('<uuid>');` y en su primer login configurar 2FA.
+   - Dueño → `insert into admins(user_id) values ('<uuid>');`
    - Primer empleado admin con PIN (desde SQL, una sola vez):
      `insert into employees(name,pin_hash,role) values ('Dueño', crypt('<pin>', gen_salt('bf',10)), 'admin');`
 3. **GitHub** → repo privado, rama `main` protegida.
