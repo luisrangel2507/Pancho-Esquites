@@ -65,20 +65,20 @@ export default function Caja() {
 
   return (
     <div className="wrap">
-      <div className="row" style={{ border: 'none' }}>
-        <b>Pancho Esquites</b>
-        <span>{emp.name} · <button onClick={() => { setEmp(null); setPin(''); setCart({}); }}>Salir</button>
-          {emp.role === 'admin' && <> · <a href="/admin">Admin</a></>}</span>
+      <div className="top">
+        <b>🌽 Pancho Esquites</b>
+        <span><small>{emp.name}</small><button onClick={() => { setEmp(null); setPin(''); setCart({}); }}>Salir</button>
+          {emp.role === 'admin' && <a href="/admin">Admin</a>}</span>
       </div>
-      <div className="cats">
-        {cats.map(c => <button key={c.id} className={c.id === cur ? 'on' : ''} onClick={() => setCur(c.id)}>{c.name}</button>)}
+      <div className="tabs">
+        {cats.map(c => <button key={c.id} className={c.id === cur ? 'on' : ''} onClick={() => setCur(c.id)}>{icon(c.name)} {c.name}</button>)}
       </div>
       <div className="grid">
         {prods.filter(p => p.category_id === cur).map(p => (
-          <button key={p.id} className="item" onClick={() => add(p.id, 1)}>
+          <button key={p.id} className={'item' + (cart[p.id] ? ' sel' : '')} onClick={() => add(p.id, 1)}>
             {p.photo_path
               ? <img src={supabase.storage.from('products').getPublicUrl(p.photo_path).data.publicUrl} alt="" />
-              : <span className="ph" />}
+              : <span className="ph">{icon(cats.find(c => c.id === p.category_id)?.name ?? '')}</span>}
             <span className="b"><b>{p.short_name ?? p.name}</b><span className="price">{mx(p.price_cents)}</span></span>
             {cart[p.id] && <span className="q">{cart[p.id].qty}</span>}
           </button>
@@ -117,6 +117,9 @@ export default function Caja() {
     </div>
   );
 }
+
+const ICONS: Record<string, string> = { Esquites: '🥣', Elotes: '🌽', Gorditas: '🫓', Antojitos: '🌮', Panqué: '🍰', Salsa: '🌶️', Bebidas: '🥤' };
+const icon = (name: string) => ICONS[name] ?? '🍽️';
 
 function DeviceLogin() {
   const [email, setEmail] = useState(''); const [pass, setPass] = useState(''); const [err, setErr] = useState('');
