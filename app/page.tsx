@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, mx, Product, Category, Employee } from '@/lib/supabase';
 import Reports from './reports';
+import { OpenCash, CloseCash, type Cash } from './cash';
 
 // Supabase exige un correo: al usuario "caja1" se le agrega este dominio interno
 const USER_DOMAIN = 'esquites.com';
@@ -29,6 +30,8 @@ export default function Caja() {
   const [menu, setMenu] = useState(false);
   const [staff, setStaff] = useState(false);
   const [reports, setReports] = useState(false);
+  const [caja, setCaja] = useState<Cash | 'na' | null>(null);
+  const [closing, setClosing] = useState(false);
   const [ticket, setTicket] = useState<{ id: number; total: number } | null>(null);
 
   // Con NEXT_PUBLIC_CAJA_USER/PASS definidas la caja se activa sola y solo se pide el PIN
@@ -49,6 +52,15 @@ export default function Caja() {
     });
     return () => { alive = false; sub.subscription.unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!emp) { setCaja(null); setClosing(false); return; }
+    supabase.rpc('cash_status', { p_pin: pin }).then(({ data, error }) => {
+      // si la base aún no tiene las funciones de caja, la app sigue funcionando sin ellas
+      if (error) setCaja(/find the function/i.test(error.message) ? 'na' : { open: false });
+      else setCaja(data as Cash);
+    });
+  }, [emp]);
 
   useEffect(() => {
     if (!emp) return;
@@ -119,6 +131,7 @@ export default function Caja() {
         {menu && <div className="menu-bg" onClick={() => setMenu(false)} />}
         {menu && <div className="menu">
           <button onClick={() => { setEmp(null); setPin(''); setCart({}); setMenu(false); }}>Cerrar turno ({emp.name})</button>
+          {caja && caja !== 'na' && caja.open && <button onClick={() => { setClosing(true); setMenu(false); }}>Cerrar caja</button>}
           {emp.role === 'admin' && <button onClick={() => { setReports(true); setMenu(false); }}>Ventas e informes</button>}
           {emp.role === 'admin' && <button onClick={() => { setStaff(true); setMenu(false); }}>Empleados</button>}
           {emp.role === 'admin' && <a href="/admin">Administración</a>}
@@ -169,6 +182,11 @@ export default function Caja() {
           : <span className="go">›</span>}
       </div>
 
+      {emp && caja === null && <div className="sheet cobro cashs"><div className="panel center">Cargando caja…</div></div>}
+      {emp && caja && caja !== 'na' && !caja.open && <OpenCash pin={pin} name={emp.name} onOpened={c => setCaja(c)}
+        onLogout={() => { setEmp(null); setPin(''); setCart({}); }} />}
+      {closing && <CloseCash pin={pin} onClose={() => setClosing(false)}
+        onDone={() => { setClosing(false); setEmp(null); setPin(''); setCart({}); }} />}
       {reports && <Reports pin={pin} onClose={() => setReports(false)} />}
       {staff && <Staff pin={pin} meId={emp.employee_id} onClose={() => setStaff(false)} />}
 

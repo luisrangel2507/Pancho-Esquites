@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, mx } from '@/lib/supabase';
+import { CashHistory } from './cash';
 
 type Row = { name: string; qty: number; cents: number };
 type Report = {
@@ -169,6 +170,8 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
           <Bars rows={data.by_emp.map(p => ({ label: p.name, value: p.cents, sub: `${p.tickets} tickets` }))} fmt={mx} /></Sec>}
 
         {t.voided > 0 && <p className="muted center">Anuladas: {t.voided} ({mx(t.voided_cents)}), no incluidas arriba.</p>}
+
+        <Sec ic={R.coins} title="Cierres de caja"><CashHistory pin={pin} /></Sec>
 
         <Sec ic={R.doc} title="Últimas ventas">
           {data.recent.length === 0 && <div className="empty-in"><DocArt /><p>Sin ventas.</p></div>}
