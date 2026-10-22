@@ -4,6 +4,9 @@ import { supabase, mx, Product, Category, Employee } from '@/lib/supabase';
 
 // Supabase exige un correo: al usuario "caja1" se le agrega este dominio interno
 const USER_DOMAIN = 'esquites.com';
+const AUTO_USER = process.env.NEXT_PUBLIC_CAJA_USER;
+const AUTO_PASS = process.env.NEXT_PUBLIC_CAJA_PASS;
+const toEmail = (u: string) => u.includes('@') ? u.trim() : `${u.trim().toLowerCase()}@${USER_DOMAIN}`;
 const IDLE_MS = 30 * 60 * 1000; // cierra el turno tras 30 min sin uso
 
 type Cart = Record<number, { qty: number; note: string }>;
@@ -23,10 +26,23 @@ export default function Caja() {
   const [menu, setMenu] = useState(false);
   const [ticket, setTicket] = useState<{ id: number; total: number } | null>(null);
 
+  // Con NEXT_PUBLIC_CAJA_USER/PASS definidas la caja se activa sola y solo se pide el PIN
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(!!data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(!!s));
-    return () => sub.subscription.unsubscribe();
+    let alive = true;
+    const auto = async () => {
+      if (!AUTO_USER || !AUTO_PASS) return false;
+      const { error } = await supabase.auth.signInWithPassword({ email: toEmail(AUTO_USER), password: AUTO_PASS });
+      return !error;
+    };
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!alive) return;
+      setSession(data.session ? true : await auto());
+    })();
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
+      if (s) setSession(true); else setSession(await auto());
+    });
+    return () => { alive = false; sub.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -191,7 +207,7 @@ const Lock = () => <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height
 function DeviceLogin() {
   const [user, setUser] = useState(''); const [pass, setPass] = useState(''); const [err, setErr] = useState('');
   async function go() {
-    const { error } = await supabase.auth.signInWithPassword({ email: user.includes('@') ? user.trim() : `${user.trim().toLowerCase()}@${USER_DOMAIN}`, password: pass });
+    const { error } = await supabase.auth.signInWithPassword({ email: toEmail(user), password: pass });
     if (error) setErr('Usuario o contraseña incorrectos');
   }
   return <Shell>
