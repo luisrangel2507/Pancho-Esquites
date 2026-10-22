@@ -88,49 +88,56 @@ export default function Caja() {
         <img className="logo" src="/logo.png" alt="Pancho Esquites" />
         <div className="tag">Esquites,<br />Elotes<br /><em>y más…</em></div>
         {emp.role === 'admin'
-          ? <a className="pill" href="/admin">👤 Admin ⌄</a>
-          : <span className="pill">👤 {emp.name}</span>}
+          ? <a className="pill" href="/admin">{USER_SVG}Admin ⌄</a>
+          : <span className="pill">{USER_SVG}{emp.name}</span>}
         {menu && <div className="menu">
           <button onClick={() => { setEmp(null); setPin(''); setCart({}); setMenu(false); }}>Cerrar turno ({emp.name})</button>
           {emp.role === 'admin' && <a href="/admin">Administración</a>}
         </div>}
       </header>
-      <div className="chips">
-        {cats.map(c => {
-          const n = prods.filter(p => p.category_id === c.id).reduce((a, p) => a + (cart[p.id]?.qty ?? 0), 0);
-          return <button key={c.id} className={'chip' + (c.id === cur ? ' on' : '')} onClick={() => setCur(c.id)}>
-            <i>{icon(c.name)}</i>{c.name}{n > 0 && <span className="n">{n}</span>}
-          </button>;
-        })}
-      </div>
-      <div className="grid3">
-        {prods.filter(p => p.category_id === cur).map(p => (
-          <div key={p.id} role="button" className={'card' + (cart[p.id] ? ' sel' : '')} onClick={() => add(p.id, 1)}>
-            <div className="ph">
-              {p.photo_path
-                ? <img src={supabase.storage.from('products').getPublicUrl(p.photo_path).data.publicUrl} alt="" />
-                : icon(cats.find(c => c.id === p.category_id)?.name ?? '')}
-            </div>
-            <div className="info">
-              <b>{p.short_name ?? p.name}</b>
-              <div className="prow"><span className="price">{mx(p.price_cents)}</span><span className="plus">+</span></div>
-            </div>
-            {cart[p.id] && <>
-              <span className="cnt">{cart[p.id].qty}</span>
-              <button className="minus" aria-label="Quitar uno" onClick={e => { e.stopPropagation(); add(p.id, -1); }}>−</button>
-            </>}
-          </div>
-        ))}
-      </div>
-      <button className="pay" disabled={!count} onClick={() => setCheckout(true)}>
+      <main className="sheetbody">
+        <div className="chips">
+          {cats.map(c => {
+            const n = prods.filter(p => p.category_id === c.id).reduce((a, p) => a + (cart[p.id]?.qty ?? 0), 0);
+            return <button key={c.id} className={'chip' + (c.id === cur ? ' on' : '')} onClick={() => setCur(c.id)}>
+              <i>{icon(c.name)}</i>{c.name}{n > 0 && <span className="n">{n}</span>}
+            </button>;
+          })}
+        </div>
+        <div className="grid3">
+          {prods.filter(p => p.category_id === cur).map(p => {
+            const cat = cats.find(c => c.id === p.category_id)?.name ?? '';
+            const nm = p.short_name ?? p.name;
+            const local = cat === 'Esquites' ? FOTOS[nm] : undefined;
+            return <div key={p.id} role="button" className={'card' + (cart[p.id] ? ' sel' : '')} onClick={() => add(p.id, 1)}>
+              <div className="ph">
+                {p.photo_path
+                  ? <img src={supabase.storage.from('products').getPublicUrl(p.photo_path).data.publicUrl} alt="" />
+                  : local ? <img src={`/fotos/${local}.jpg`} alt="" /> : icon(cat)}
+              </div>
+              <div className="info">
+                <div><b>{nm}</b>{cat === 'Esquites' && DESC[nm] && <small>{DESC[nm]}</small>}</div>
+                <div className="prow"><span className="price">{mx(p.price_cents)}</span><span className="plus">+</span></div>
+              </div>
+              {cart[p.id] && <>
+                <span className="cnt">{cart[p.id].qty}</span>
+                <button className="minus" aria-label="Quitar uno" onClick={e => { e.stopPropagation(); add(p.id, -1); }}>−</button>
+              </>}
+            </div>;
+          })}
+        </div>
+      </main>
+      <div className="pay" role="button" aria-disabled={!count} onClick={() => count && setCheckout(true)}>
         <span className="cartic">
           <svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6.2" /><circle cx="9" cy="19" r="1.3" /><circle cx="17" cy="19" r="1.3" /></svg>
         </span>
         <span className="bd">{count}</span>
         <span className="sep" />
-        <span className="ptxt">{count ? `Cobrar · ${count} artículo${count > 1 ? 's' : ''}` : 'Agrega productos para cobrar'}</span>
-        {count ? <span className="tot">{mx(total)}</span> : <span>›</span>}
-      </button>
+        <span className="ptxt">{count ? <>Cobrar · {count} artículo{count > 1 ? 's' : ''}<small>Revisa tu pedido</small></> : 'Agrega productos para cobrar'}</span>
+        {count
+          ? <span className="tot">{mx(total)}<svg viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" /></svg></span>
+          : <span className="go">›</span>}
+      </div>
 
       {checkout && <div className="sheet" onClick={e => e.target === e.currentTarget && setCheckout(false)}><div className="panel">
         <h2>Cobrar {mx(total)}</h2>
@@ -165,6 +172,10 @@ export default function Caja() {
 
 const ICONS: Record<string, string> = { Esquites: '🥣', Elotes: '🌽', Gorditas: '🫓', Antojitos: '🌮', Panqué: '🍰', Salsa: '🌶️', Bebidas: '🥤' };
 const icon = (name: string) => ICONS[name] ?? '🍽️';
+const USER_SVG = <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2" /><path d="M3.5 21a8.5 8.5 0 0 1 17 0z" /></svg>;
+// Fotos y descripciones de respaldo mientras un producto no tiene foto en Supabase Storage
+const FOTOS: Record<string, string> = { 'Chico': 'chico', 'Mediano': 'mediano', 'Grande': 'grande', 'Extragrande': 'extragrande', 'Rebanado por pieza': 'rebanado', 'Combinado mediano': 'combinado-mediano', 'Combinado grande': 'combinado-grande', 'Asado grande': 'asado-grande', 'Vaso extra': 'vaso-extra' };
+const DESC: Record<string, string> = { 'Chico': 'Clásico y delicioso', 'Mediano': 'El favorito de todos', 'Grande': 'Más sabor, más antojo', 'Extragrande': 'Para los que sí comen', 'Rebanado por pieza': 'Elote en rebanadas', 'Combinado mediano': 'Esquite + Elote', 'Combinado grande': 'Doble antojo', 'Asado grande': 'Al carbón, más sabor', 'Vaso extra': 'Perfecto para compartir' };
 
 function Shell({ children }: { children: React.ReactNode }) {
   return <div className="auth">
