@@ -33,3 +33,16 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #EADBB4;font-s
 .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #EADBB4}
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end}
 .panel{background:var(--bg);width:100%;max-width:720px;margin:0 auto;border-radius:18px 18px 0 0;padding:16px;max-height:90%;overflow:auto}
+.auth{min-height:100dvh;background:#FAE6B8;display:flex;flex-direction:column;align-items:center;overflow-x:hidden}
+.auth .art-top{width:100%;max-width:520px;display:block;-webkit-mask-image:linear-gradient(#000 92%,transparent);mask-image:linear-gradient(#000 92%,transparent)}
+.auth .art-bot{width:100%;max-width:520px;display:block;margin-top:auto;pointer-events:none;-webkit-mask-image:linear-gradient(transparent,#000 22%);mask-image:linear-gradient(transparent,#000 22%)}
+.auth .body{width:100%;max-width:420px;padding:0 20px;margin-top:4px;position:relative;z-index:1;text-align:center}
+.auth h1,.auth h2{margin:0 0 6px;font-size:32px;font-weight:900;color:#3A1F12}
+.auth p{margin:4px 0 14px;color:#3A1F12}
+.field{position:relative;margin:10px 0}
+.field svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:24px;height:24px;stroke:var(--green);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.field input{margin:0;padding:18px 16px 18px 54px;border:none;border-radius:16px;background:#FFFCF3;box-shadow:0 3px 10px rgba(110,80,20,.18);font-size:17px}
+.auth .primary{margin-top:14px;border-radius:999px}
+.auth .pad{margin:8px auto 12px}
+.auth .pad button{box-shadow:0 2px 6px rgba(110,80,20,.15);background:#FFFCF3}
+.dots{font-size:28px;letter-spacing:8px;min-height:36px;color:var(--green)}

@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, mx, Product, Category, Employee } from '@/lib/supabase';
 
+const IDLE_MS = 30 * 60 * 1000; // cierra el turno tras 30 min sin uso
+
 type Cart = Record<number, { qty: number; note: string }>;
 
 export default function Caja() {
@@ -23,6 +25,17 @@ export default function Caja() {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(!!s));
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!emp) return;
+    let t: ReturnType<typeof setTimeout>;
+    const out = () => { setEmp(null); setPin(''); setCart({}); setCheckout(false); setTicket(null); };
+    const reset = () => { clearTimeout(t); t = setTimeout(out, IDLE_MS); };
+    const evs = ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const;
+    evs.forEach(e => window.addEventListener(e, reset, { passive: true }));
+    reset();
+    return () => { clearTimeout(t); evs.forEach(e => window.removeEventListener(e, reset)); };
+  }, [emp]);
 
   useEffect(() => {
     if (!emp) return;
@@ -121,18 +134,31 @@ export default function Caja() {
 const ICONS: Record<string, string> = { Esquites: '🥣', Elotes: '🌽', Gorditas: '🫓', Antojitos: '🌮', Panqué: '🍰', Salsa: '🌶️', Bebidas: '🥤' };
 const icon = (name: string) => ICONS[name] ?? '🍽️';
 
+function Shell({ children }: { children: React.ReactNode }) {
+  return <div className="auth">
+    <img className="art-top" src="/auth-top.jpg" alt="Pancho Esquites" />
+    <div className="body">{children}</div>
+    <img className="art-bot" src="/auth-bottom.jpg" alt="" />
+  </div>;
+}
+
+const Mail = () => <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>;
+const Lock = () => <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
+
 function DeviceLogin() {
   const [email, setEmail] = useState(''); const [pass, setPass] = useState(''); const [err, setErr] = useState('');
-  return <div className="wrap center">
-    <h2>Activar caja</h2><p>Solo se hace una vez por dispositivo. Lo hace el dueño.</p>
-    <input id="email" type="email" placeholder="Correo de la caja" value={email} onChange={e => setEmail(e.target.value)} />
-    <input id="pass" type="password" placeholder="Contraseña" value={pass} onChange={e => setPass(e.target.value)} />
+  async function go() {
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) setErr('Correo o contraseña incorrectos');
+  }
+  return <Shell>
+    <h2>Activar caja</h2><p>Solo se hace una vez por dispositivo.<br />Lo hace el dueño.</p>
+    <div className="field"><Mail /><input id="email" type="email" placeholder="Correo de la caja" value={email} onChange={e => setEmail(e.target.value)} /></div>
+    <div className="field"><Lock /><input id="pass" type="password" placeholder="Contraseña" value={pass} onChange={e => setPass(e.target.value)}
+      onKeyDown={e => e.key === 'Enter' && go()} /></div>
     <p className="err">{err}</p>
-    <button className="primary" onClick={async () => {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
-      if (error) setErr('Correo o contraseña incorrectos');
-    }}>Activar</button>
-  </div>;
+    <button className="primary" onClick={go}>Activar caja</button>
+  </Shell>;
 }
 
 function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
@@ -147,11 +173,11 @@ function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
       if (p.length === 6 || error?.message.includes('intentos')) { setErr(error?.message ?? 'PIN incorrecto'); setPin(''); }
     }
   }
-  return <div className="wrap center">
-    <h1>Ingresa tu <span style={{ color: '#B8860B' }}>PIN</span></h1>
-    <p>{'●'.repeat(pin.length) || 'para abrir caja'}</p>
+  return <Shell>
+    <h2>Ingresa tu <span style={{ color: '#B8860B' }}>PIN</span></h2>
+    <p className="dots">{'●'.repeat(pin.length) || <span style={{ fontSize: 16, letterSpacing: 0, color: '#7A6450' }}>para abrir caja</span>}</p>
     <p className="err">{err}</p>
     <div className="pad">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) =>
       k ? <button key={i} onClick={() => press(k)}>{k}</button> : <span key={i} />)}</div>
-  </div>;
+  </Shell>;
 }
