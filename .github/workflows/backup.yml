@@ -1,0 +1,27 @@
+# Respaldo nocturno cifrado, fuera de Supabase y de Cloudflare.
+# Secrets necesarios en GitHub (Settings → Secrets → Actions):
+#   BACKUP_DB_URL   postgresql://backup_ro:<pass>@db.<ref>.supabase.co:5432/postgres?sslmode=require  (rol de SOLO LECTURA)
+#   AGE_PUBLIC_KEY  llave pública age (la privada vive solo en tu computadora/gestor de contraseñas)
+name: backup
+on:
+  schedule: [{ cron: '0 9 * * *' }]   # 3:00 am Querétaro
+  workflow_dispatch: {}
+permissions: { contents: read }
+jobs:
+  dump:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Instalar herramientas
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -sSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -q && sudo apt-get install -yq postgresql-client-17 age
+      - name: Respaldar y cifrar
+        env: { DB: '${{ secrets.BACKUP_DB_URL }}', KEY: '${{ secrets.AGE_PUBLIC_KEY }}' }
+        run: |
+          f="pancho-$(date -u +%F).sql.gz.age"
+          pg_dump "$DB" --no-owner --schema=public | gzip | age -r "$KEY" -o "$f"
+          echo "FILE=$f" >> $GITHUB_ENV
+      - uses: actions/upload-artifact@v4
+        with: { name: '${{ env.FILE }}', path: '${{ env.FILE }}', retention-days: 30 }
