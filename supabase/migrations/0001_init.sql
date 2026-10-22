@@ -31,7 +31,7 @@ create table employees (
   created_at timestamptz not null default now()
 );
 
--- Cuentas de Supabase Auth autorizadas (dueño / admins con correo y 2FA)
+-- Cuentas de Supabase Auth autorizadas (dueño / admins con correo y contraseña)
 create table admins (
   user_id uuid primary key references auth.users(id) on delete cascade,
   created_at timestamptz not null default now()
@@ -190,7 +190,7 @@ begin
   where sale_id = p_sale_id and reason = 'venta';
 end $$;
 
--- ───────── API para el admin (sesión de Auth con correo + 2FA) ─────────
+-- ───────── API para el admin (sesión de Auth con correo y contraseña) ─────────
 create or replace function admin_upsert_employee(p_id uuid, p_name text, p_pin text, p_role text, p_active boolean)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare new_id uuid;
