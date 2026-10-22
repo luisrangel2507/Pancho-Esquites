@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, mx, Product, Category, Employee } from '@/lib/supabase';
+import Reports from './reports';
 
 // Supabase exige un correo: al usuario "caja1" se le agrega este dominio interno
 const USER_DOMAIN = 'esquites.com';
@@ -25,6 +26,7 @@ export default function Caja() {
   const [msg, setMsg] = useState('');
   const [menu, setMenu] = useState(false);
   const [staff, setStaff] = useState(false);
+  const [reports, setReports] = useState(false);
   const [ticket, setTicket] = useState<{ id: number; total: number } | null>(null);
 
   // Con NEXT_PUBLIC_CAJA_USER/PASS definidas la caja se activa sola y solo se pide el PIN
@@ -105,10 +107,11 @@ export default function Caja() {
         <img className="logo" src="/logo.png" alt="Pancho Esquites" />
         <div className="tag">Esquites,<br />Elotes<br /><em>y más…</em></div>
         {emp.role === 'admin'
-          ? <a className="pill" href="/admin">{USER_SVG}Admin ⌄</a>
+          ? <button className="pill" onClick={() => setMenu(m => !m)}>{USER_SVG}Admin ⌄</button>
           : <span className="pill">{USER_SVG}{emp.name}</span>}
         {menu && <div className="menu">
           <button onClick={() => { setEmp(null); setPin(''); setCart({}); setMenu(false); }}>Cerrar turno ({emp.name})</button>
+          {emp.role === 'admin' && <button onClick={() => { setReports(true); setMenu(false); }}>Ventas e informes</button>}
           {emp.role === 'admin' && <button onClick={() => { setStaff(true); setMenu(false); }}>Empleados</button>}
           {emp.role === 'admin' && <a href="/admin">Administración</a>}
         </div>}
@@ -157,6 +160,7 @@ export default function Caja() {
           : <span className="go">›</span>}
       </div>
 
+      {reports && <Reports pin={pin} onClose={() => setReports(false)} />}
       {staff && <Staff pin={pin} onClose={() => setStaff(false)} />}
 
       {checkout && <div className="sheet" onClick={e => e.target === e.currentTarget && setCheckout(false)}><div className="panel">
