@@ -24,6 +24,7 @@ export default function Caja() {
   const [cash, setCash] = useState('');
   const [msg, setMsg] = useState('');
   const [menu, setMenu] = useState(false);
+  const [staff, setStaff] = useState(false);
   const [ticket, setTicket] = useState<{ id: number; total: number } | null>(null);
 
   // Con NEXT_PUBLIC_CAJA_USER/PASS definidas la caja se activa sola y solo se pide el PIN
@@ -108,6 +109,7 @@ export default function Caja() {
           : <span className="pill">{USER_SVG}{emp.name}</span>}
         {menu && <div className="menu">
           <button onClick={() => { setEmp(null); setPin(''); setCart({}); setMenu(false); }}>Cerrar turno ({emp.name})</button>
+          {emp.role === 'admin' && <button onClick={() => { setStaff(true); setMenu(false); }}>Empleados</button>}
           {emp.role === 'admin' && <a href="/admin">Administración</a>}
         </div>}
       </header>
@@ -154,6 +156,8 @@ export default function Caja() {
           ? <span className="tot">{mx(total)}<svg viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" /></svg></span>
           : <span className="go">›</span>}
       </div>
+
+      {staff && <Staff pin={pin} onClose={() => setStaff(false)} />}
 
       {checkout && <div className="sheet" onClick={e => e.target === e.currentTarget && setCheckout(false)}><div className="panel">
         <h2>Cobrar {mx(total)}</h2>
@@ -242,4 +246,52 @@ function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
       k ? <button key={i} aria-label={k === '⌫' ? 'Borrar' : k} onClick={() => press(k)}>
         {k === '⌫' ? <svg viewBox="0 0 24 24"><path d="M21 5H9l-6 7 6 7h12z" /><path d="m13 9 4 6m0-6-4 6" /></svg> : k}</button> : <span key={i} />)}</div>
   </div>;
+}
+
+type Person = { id: string; name: string; role: 'cajero' | 'admin'; active: boolean };
+
+function Staff({ pin, onClose }: { pin: string; onClose: () => void }) {
+  const [list, setList] = useState<Person[]>([]);
+  const [name, setName] = useState(''); const [np, setNp] = useState('');
+  const [role, setRole] = useState<'cajero' | 'admin'>('cajero');
+  const [edit, setEdit] = useState<string | null>(null); const [ep, setEp] = useState('');
+  const [err, setErr] = useState('');
+  const load = async () => {
+    const { data, error } = await supabase.rpc('staff_list', { p_admin_pin: pin });
+    if (error) setErr(error.message); else setList(data ?? []);
+  };
+  useEffect(() => { load(); }, []);
+  async function save(p: Person | null, patch: { pin?: string; active?: boolean }) {
+    setErr('');
+    const { error } = await supabase.rpc('staff_upsert', {
+      p_admin_pin: pin, p_id: p?.id ?? null, p_name: p?.name ?? name, p_pin: patch.pin ?? null,
+      p_role: p?.role ?? role, p_active: patch.active ?? p?.active ?? true,
+    });
+    if (error) return setErr(error.message);
+    if (!p) { setName(''); setNp(''); }
+    setEdit(null); setEp(''); load();
+  }
+  return <div className="sheet" onClick={e => e.target === e.currentTarget && onClose()}><div className="panel">
+    <h2>Empleados</h2>
+    {list.map(p => <div key={p.id}>
+      <div className="row"><span>{p.name} · {p.role}{p.active ? '' : ' (inactivo)'}</span>
+        <span>
+          <button onClick={() => { setEdit(edit === p.id ? null : p.id); setEp(''); }}>PIN</button>{' '}
+          <button onClick={() => save(p, { active: !p.active })}>{p.active ? 'Desactivar' : 'Activar'}</button>
+        </span></div>
+      {edit === p.id && <div>
+        <input inputMode="numeric" maxLength={6} placeholder="Nuevo PIN (4 a 6 números)" value={ep} onChange={e => setEp(e.target.value.replace(/\D/g, ''))} />
+        <button className="primary" onClick={() => save(p, { pin: ep })}>Guardar PIN</button>
+      </div>}
+    </div>)}
+    <h3>Nuevo empleado</h3>
+    <input placeholder="Nombre" value={name} onChange={e => setName(e.target.value)} />
+    <input inputMode="numeric" maxLength={6} placeholder="PIN (4 a 6 números)" value={np} onChange={e => setNp(e.target.value.replace(/\D/g, ''))} />
+    <div className="cats" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <button className={role === 'cajero' ? 'on' : ''} onClick={() => setRole('cajero')}>Cajero</button>
+      <button className={role === 'admin' ? 'on' : ''} onClick={() => setRole('admin')}>Admin</button></div>
+    <p className="err">{err}</p>
+    <button className="primary" disabled={!name.trim() || np.length < 4} onClick={() => save(null, { pin: np })}>Agregar</button>
+    <p><button onClick={onClose}>Cerrar</button></p>
+  </div></div>;
 }
