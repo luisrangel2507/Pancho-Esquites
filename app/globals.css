@@ -210,3 +210,5 @@ button.pill{font-family:inherit;cursor:pointer}
 .regv{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;border:none;border-radius:20px;background:#0B4A2A;color:#fff;font-weight:800;font-size:21px;box-shadow:0 6px 16px rgba(0,0,0,.3)}
 .regv .ico{width:32px;height:32px}
 .sheet.cobro .err{margin:4px 0}
+
+.cats button:disabled{opacity:.45}

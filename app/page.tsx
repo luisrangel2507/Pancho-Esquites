@@ -166,7 +166,7 @@ export default function Caja() {
       </div>
 
       {reports && <Reports pin={pin} onClose={() => setReports(false)} />}
-      {staff && <Staff pin={pin} onClose={() => setStaff(false)} />}
+      {staff && <Staff pin={pin} onClose={() => setStaff(false)} onPassed={() => { setStaff(false); setEmp(null); setPin(''); setCart({}); }} />}
 
       {checkout && <div className="sheet cobro" onClick={e => e.target === e.currentTarget && setCheckout(false)}><div className="panel">
         <div className="grab" />
@@ -280,7 +280,7 @@ function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
 
 type Person = { id: string; name: string; role: 'cajero' | 'admin'; active: boolean };
 
-function Staff({ pin, onClose }: { pin: string; onClose: () => void }) {
+function Staff({ pin, onClose, onPassed }: { pin: string; onClose: () => void; onPassed: () => void }) {
   const [list, setList] = useState<Person[]>([]);
   const [name, setName] = useState(''); const [np, setNp] = useState('');
   const [role, setRole] = useState<'cajero' | 'admin'>('cajero');
@@ -295,11 +295,23 @@ function Staff({ pin, onClose }: { pin: string; onClose: () => void }) {
     setErr('');
     const { error } = await supabase.rpc('staff_upsert', {
       p_admin_pin: pin, p_id: p?.id ?? null, p_name: p?.name ?? name, p_pin: patch.pin ?? null,
-      p_role: p?.role ?? role, p_active: patch.active ?? p?.active ?? true,
+      p_role: p?.role ?? (hasAdmin ? 'cajero' : role), p_active: patch.active ?? p?.active ?? true,
     });
     if (error) return setErr(error.message);
     if (!p) { setName(''); setNp(''); }
     setEdit(null); setEp(''); load();
+  }
+  const hasAdmin = list.some(p => p.role === 'admin' && p.active);
+  async function makeAdmin(p: Person) {
+    if (!confirm(`¿Pasar el mando a ${p.name}? Tú quedarás como cajero y se cerrará tu turno.`)) return;
+    const { error } = await supabase.rpc('staff_make_admin', { p_admin_pin: pin, p_to: p.id });
+    if (error) setErr(error.message); else onPassed();
+  }
+  async function remove(p: Person) {
+    if (!confirm(`¿Borrar a ${p.name}? No se puede deshacer.`)) return;
+    setErr('');
+    const { error } = await supabase.rpc('staff_delete', { p_admin_pin: pin, p_id: p.id });
+    if (error) setErr(error.message); else load();
   }
   return <div className="sheet" onClick={e => e.target === e.currentTarget && onClose()}><div className="panel">
     <h2>Empleados</h2>
@@ -307,7 +319,9 @@ function Staff({ pin, onClose }: { pin: string; onClose: () => void }) {
       <div className="row"><span>{p.name} · {p.role}{p.active ? '' : ' (inactivo)'}</span>
         <span>
           <button onClick={() => { setEdit(edit === p.id ? null : p.id); setEp(''); }}>PIN</button>{' '}
+          {p.active && p.role === 'cajero' && <><button onClick={() => makeAdmin(p)}>Hacer admin</button>{' '}</>}
           <button onClick={() => save(p, { active: !p.active })}>{p.active ? 'Desactivar' : 'Activar'}</button>
+          {!p.active && <>{' '}<button onClick={() => remove(p)}>Eliminar</button></>}
         </span></div>
       {edit === p.id && <div>
         <input inputMode="numeric" maxLength={6} placeholder="Nuevo PIN (4 a 6 números)" value={ep} onChange={e => setEp(e.target.value.replace(/\D/g, ''))} />
@@ -318,8 +332,9 @@ function Staff({ pin, onClose }: { pin: string; onClose: () => void }) {
     <input placeholder="Nombre" value={name} onChange={e => setName(e.target.value)} />
     <input inputMode="numeric" maxLength={6} placeholder="PIN (4 a 6 números)" value={np} onChange={e => setNp(e.target.value.replace(/\D/g, ''))} />
     <div className="cats" style={{ gridTemplateColumns: '1fr 1fr' }}>
-      <button className={role === 'cajero' ? 'on' : ''} onClick={() => setRole('cajero')}>Cajero</button>
-      <button className={role === 'admin' ? 'on' : ''} onClick={() => setRole('admin')}>Admin</button></div>
+      <button className={(hasAdmin || role === 'cajero') ? 'on' : ''} onClick={() => setRole('cajero')}>Cajero</button>
+      <button className={!hasAdmin && role === 'admin' ? 'on' : ''} disabled={hasAdmin} onClick={() => setRole('admin')}>Admin</button></div>
+    {hasAdmin && <p className="muted">Ya hay un administrador activo. Para cambiarlo usa "Hacer admin" en el empleado.</p>}
     <p className="err">{err}</p>
     <button className="primary" disabled={!name.trim() || np.length < 4} onClick={() => save(null, { pin: np })}>Agregar</button>
     <p><button onClick={onClose}>Cerrar</button></p>
