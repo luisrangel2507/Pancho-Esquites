@@ -270,9 +270,3 @@ revoke execute on function check_pin(text) from authenticated;
 --   create role backup_ro login password '...';
 --   grant pg_read_all_data to backup_ro;
 
--- Admin exige 2FA (nivel aal2) para que is_admin() sea verdadero
-create or replace function is_admin() returns boolean
-language sql stable security definer set search_path = public as $$
-  select exists(select 1 from admins where user_id = auth.uid())
-     and coalesce(auth.jwt()->>'aal','aal1') = 'aal2';
-$$;
