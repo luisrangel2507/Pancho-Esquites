@@ -148,3 +148,47 @@ body:has(.pin){background:var(--pin-bg)}
 .lnk{background:none;border:none;color:var(--red);font-size:13px;text-decoration:underline;padding:2px 0}
 
 button.pill{font-family:inherit;cursor:pointer}
+
+/* ───── Cobrar ───── */
+.sheet.cobro{background:rgba(0,0,0,.18);align-items:flex-end}
+.sheet.cobro .panel{max-width:520px;padding:8px 14px calc(18px + env(safe-area-inset-bottom));max-height:calc(100dvh - 120px);background:#FCF1D8;border-radius:24px 24px 0 0;box-shadow:0 -6px 24px rgba(0,0,0,.25)}
+.grab{width:42px;height:5px;border-radius:5px;background:#C9B98A;margin:4px auto 12px}
+.ico{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.ch{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ch-ic{width:48px;height:48px;border-radius:13px;background:var(--gold);display:grid;place-items:center;color:#2A1C13;flex:0 0 48px}
+.ch-ic .ico{width:30px;height:30px}
+.ch-t{flex:1;min-width:0}
+.ch-t h2{margin:0;font-family:var(--f-slab),serif;font-weight:400;font-size:25px;line-height:1.1;white-space:nowrap}
+.ch-t h2 em{font-style:normal;color:#1B7F4A}
+.ch-t small{color:var(--muted);font-size:14px}
+.vaciar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:12px;border:1.5px solid #F2A6A0;background:#FBE1DE;color:#C62828;font-weight:700;font-size:14px}
+.vaciar .ico{width:18px;height:18px}
+.li{display:flex;align-items:center;gap:10px;background:#FFF9EA;border-radius:16px;padding:6px 8px;margin-bottom:6px;box-shadow:0 2px 6px rgba(110,80,20,.12)}
+.li-ph{width:62px;height:62px;border-radius:11px;overflow:hidden;flex:0 0 62px;display:grid;place-items:center;font-size:34px;background:linear-gradient(135deg,#FFF3CF,#F6E3A8)}
+.li-ph img{width:100%;height:100%;object-fit:cover}
+.li-m{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.li-m b{font-family:var(--f-osw),sans-serif;font-weight:600;font-size:14px;line-height:1.1}
+.li-r{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.step{display:flex;align-items:center;background:#F7EAC8;border-radius:999px;padding:3px}
+.step span{min-width:26px;text-align:center;font-weight:700;font-size:17px}
+.step button{width:30px;height:30px;border-radius:50%;border:none;font-size:22px;line-height:1;padding:0 0 2px;display:grid;place-items:center}
+.step .mn{background:#E4E4E4;color:#2A1C13}
+.step .pl{background:#0B4A2A;color:#fff}
+.li-r strong{font-size:16px;color:#0B4A2A}
+.payseg{display:grid;grid-template-columns:1fr 1fr 1.15fr;gap:8px;margin:8px 0}
+.payseg button{display:flex;align-items:center;justify-content:center;gap:6px;padding:11px 6px;border-radius:14px;border:2px solid transparent;background:#FFF9EA;color:var(--ink);font-weight:700;font-size:13px;box-shadow:0 2px 6px rgba(110,80,20,.12)}
+.payseg button .ico{width:22px;height:22px}
+.payseg button.on{background:#024D2A;color:#fff;border-color:var(--gold)}
+.recv{background:#fff;border-radius:16px;padding:8px 12px;margin-bottom:8px;box-shadow:0 2px 6px rgba(110,80,20,.12)}
+.recv label{display:block;color:var(--muted);font-size:14px;margin-bottom:4px}
+.recv-in{position:relative}
+.recv-in input{margin:0;outline:none;padding:9px 44px 9px 14px;font-size:22px;font-weight:600;border:2px solid #1B7F4A;border-radius:12px;background:#fff}
+.recv-in button{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;border:none;background:#C9C9C9;color:#fff;font-size:20px;line-height:1;padding:0 0 2px}
+.chg{display:flex;align-items:center;gap:12px;background:#D2EBCB;color:#0B4A2A;border-radius:16px;padding:10px 16px;margin-bottom:8px}
+.chg .ico{width:34px;height:34px}
+.chg b{flex:1;font-size:22px}
+.chg strong{font-size:28px;font-family:var(--f-osw),sans-serif}
+.chg.low{background:#FBE1DE;color:#C62828}
+.regv{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;border:none;border-radius:20px;background:#0B4A2A;color:#fff;font-weight:800;font-size:21px;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.regv .ico{width:32px;height:32px}
+.sheet.cobro .err{margin:4px 0}

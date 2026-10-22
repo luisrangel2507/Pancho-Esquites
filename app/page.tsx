@@ -97,6 +97,11 @@ export default function Caja() {
   }
 
   const cashCents = Math.round(parseFloat(cash || '0') * 100);
+  const photoOf = (p: Product): string | null => {
+    if (p.photo_path) return supabase.storage.from('products').getPublicUrl(p.photo_path).data.publicUrl;
+    const f = cats.find(c => c.id === p.category_id)?.name === 'Esquites' ? FOTOS[p.short_name ?? p.name] : undefined;
+    return f ? `/fotos/${f}.jpg` : null;
+  };
 
   return (
     <div className="app">
@@ -163,25 +168,38 @@ export default function Caja() {
       {reports && <Reports pin={pin} onClose={() => setReports(false)} />}
       {staff && <Staff pin={pin} onClose={() => setStaff(false)} />}
 
-      {checkout && <div className="sheet" onClick={e => e.target === e.currentTarget && setCheckout(false)}><div className="panel">
-        <h2>Cobrar {mx(total)}</h2>
+      {checkout && <div className="sheet cobro" onClick={e => e.target === e.currentTarget && setCheckout(false)}><div className="panel">
+        <div className="grab" />
+        <div className="ch">
+          <span className="ch-ic">{I.cart}</span>
+          <div className="ch-t"><h2>Cobrar <em>{mx(total)}</em></h2><small>{count} artículo{count === 1 ? '' : 's'} en el carrito</small></div>
+          <button className="vaciar" onClick={() => { setCart({}); setCheckout(false); }}>{I.trash}Vaciar</button>
+        </div>
         {Object.entries(cart).map(([id, v]) => {
           const p = prods.find(x => x.id === +id)!;
-          return <div key={id}>
-            <div className="row"><span>{v.qty} × {p.name}</span>
-              <span><button onClick={() => add(p.id, -1)}>−</button> <button onClick={() => add(p.id, 1)}>+</button></span></div>
+          const img = photoOf(p);
+          return <div className="li" key={id}>
+            <div className="li-ph">{img ? <img src={img} alt="" /> : icon(cats.find(c => c.id === p.category_id)?.name ?? '')}</div>
+            <div className="li-m"><b>{p.name}</b><span className="price">{mx(p.price_cents)}</span></div>
+            <div className="li-r">
+              <div className="step"><button className="mn" aria-label="Quitar uno" onClick={() => add(p.id, -1)}>−</button><span>{v.qty}</span><button className="pl" aria-label="Agregar uno" onClick={() => add(p.id, 1)}>+</button></div>
+              <strong>{mx(p.price_cents * v.qty)}</strong>
+            </div>
           </div>;
         })}
-        <div className="cats" style={{ gridTemplateColumns: 'repeat(3,1fr)', margin: '10px 0' }}>
-          {(['cash', 'card', 'spei'] as const).map(k => <button key={k} className={pay === k ? 'on' : ''} onClick={() => setPay(k)}>
-            {k === 'cash' ? 'Efectivo' : k === 'card' ? 'Tarjeta' : 'Transferencia'}</button>)}
+        <div className="payseg">
+          {([['cash', 'Efectivo', I.bill], ['card', 'Tarjeta', I.card], ['spei', 'Transferencia', I.qr]] as const).map(([k, l, ic]) =>
+            <button key={k} className={pay === k ? 'on' : ''} onClick={() => setPay(k)}>{ic}{l}</button>)}
         </div>
         {pay === 'cash' && <>
-          <input id="cash" inputMode="decimal" placeholder="Recibido $" value={cash} onChange={e => setCash(e.target.value.replace(/[^\d.]/g, ''))} />
-          <div className="row"><b>Cambio</b><b>{cash ? (cashCents >= total ? mx(cashCents - total) : 'Falta ' + mx(total - cashCents)) : '—'}</b></div>
+          <div className="recv"><label htmlFor="cash">Recibido $</label>
+            <div className="recv-in"><input id="cash" inputMode="decimal" value={cash} onChange={e => setCash(e.target.value.replace(/[^\d.]/g, ''))} />
+              {cash && <button aria-label="Borrar" onClick={() => setCash('')}>×</button>}</div></div>
+          <div className={'chg' + (cash && cashCents < total ? ' low' : '')}>{I.coins}<b>{cash && cashCents < total ? 'Falta' : 'Cambio'}</b>
+            <strong>{cash ? mx(Math.abs(cashCents - total)) : '—'}</strong></div>
         </>}
         <p className="err">{msg}</p>
-        <button className="primary" onClick={cobrar}>Registrar venta</button>
+        <button className="regv" onClick={cobrar}>{I.printer}Registrar venta</button>
       </div></div>}
 
       {ticket && <div className="sheet" onClick={() => setTicket(null)}><div className="panel center">
@@ -194,6 +212,16 @@ export default function Caja() {
 
 const ICONS: Record<string, string> = { Esquites: '🥣', Elotes: '🌽', Gorditas: '🫓', Antojitos: '🌮', Panqué: '🍰', Salsa: '🌶️', Bebidas: '🥤' };
 const icon = (name: string) => ICONS[name] ?? '🍽️';
+const sv = (d: React.ReactNode) => <svg viewBox="0 0 24 24" className="ico">{d}</svg>;
+const I = {
+  cart: sv(<><path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6.2" /><circle cx="9" cy="19" r="1.3" /><circle cx="17" cy="19" r="1.3" /></>),
+  trash: sv(<><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></>),
+  bill: sv(<><rect x="2.5" y="6" width="19" height="12" rx="2" /><circle cx="12" cy="12" r="2.6" /><path d="M6 9v.01M18 15v.01" /></>),
+  card: sv(<><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M2.5 10h19M6 15h4" /></>),
+  qr: sv(<><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><rect x="8" y="8" width="3" height="3" /><rect x="13" y="8" width="3" height="3" /><rect x="8" y="13" width="3" height="3" /><path d="M13 13h3v3" /></>),
+  coins: sv(<><ellipse cx="9" cy="7" rx="6" ry="3" /><path d="M3 7v5c0 1.7 2.7 3 6 3s6-1.300 6-3V7M3 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3" /><path d="M15 10.500c3 0 6 1 6 2.500v5c0 1.500-2.500 2.500-5 2.500" /></>),
+  printer: sv(<><path d="M7 9V3h10v6M7 17H4.500A1.500 1.500 0 0 1 3 15.500v-5A1.500 1.500 0 0 1 4.500 9h15a1.500 1.500 0 0 1 1.500 1.500v5a1.500 1.500 0 0 1-1.500 1.500H17" /><rect x="7" y="14" width="10" height="7" rx="1" /></>),
+};
 const USER_SVG = <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2" /><path d="M3.5 21a8.5 8.5 0 0 1 17 0z" /></svg>;
 // Fotos y descripciones de respaldo mientras un producto no tiene foto en Supabase Storage
 const FOTOS: Record<string, string> = { 'Chico': 'chico', 'Mediano': 'mediano', 'Grande': 'grande', 'Extragrande': 'extragrande', 'Rebanado por pieza': 'rebanado', 'Combinado mediano': 'combinado-mediano', 'Combinado grande': 'combinado-grande', 'Asado grande': 'asado-grande', 'Vaso extra': 'vaso-extra' };
