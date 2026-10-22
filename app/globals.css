@@ -97,3 +97,6 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--card-bor
 /* ───── App instalada (pantalla completa) ───── */
 .pin .hero{padding-top:env(safe-area-inset-top)}
 body{overscroll-behavior-y:none}
+
+body:has(.auth){background:#FAE6B8}
+body:has(.pin){background:var(--pin-bg)}
