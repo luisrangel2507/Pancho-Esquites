@@ -87,3 +87,8 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--card-bor
 .field svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:24px;height:24px;stroke:var(--green);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .field input{margin:0;padding:18px 16px 18px 54px;border:none;border-radius:16px;background:#FFFCF3;box-shadow:0 3px 10px rgba(110,80,20,.18);font-size:17px}
 .auth .primary{margin-top:14px;border-radius:999px}
+
+/* ───── App instalada (pantalla completa) ───── */
+.hdr{padding-top:calc(10px + env(safe-area-inset-top))}
+.pin .hero{padding-top:env(safe-area-inset-top)}
+body{overscroll-behavior-y:none}
