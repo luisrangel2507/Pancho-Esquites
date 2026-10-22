@@ -269,3 +269,21 @@ button.pill{font-family:inherit;cursor:pointer}
 .rd.ck{background:#F4BE2C;border-color:#F4BE2C}
 .sheet.staff .regv{margin-top:6px}.sheet.staff .regv:disabled{opacity:.55}
 .st-close{display:block;margin:12px auto 0;padding:14px 48px;border-radius:999px;border:1.5px solid #D8D2C2;background:#fff;font-size:18px;color:var(--ink)}
+
+/* ───── Venta registrada ───── */
+.sheet.done .panel{position:relative;overflow:hidden;text-align:center;padding:22px 20px calc(24px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#FCF1D8,#F7E6BE);max-height:none}
+.ok{position:relative;width:140px;height:96px;margin:0 auto}
+.ok .sp{position:absolute;left:0;top:8px;width:140px;height:80px;stroke:#F4BE2C;fill:none;stroke-width:4.500;stroke-linecap:round}
+.ok-c{position:absolute;left:50%;top:0;transform:translateX(-50%);width:82px;height:82px;border-radius:50%;background:#0B4A2A;display:grid;place-items:center;box-shadow:0 6px 14px rgba(0,0,0,.3)}
+.ok-c svg{width:48px;height:48px;stroke:#fff;fill:none;stroke-width:3.200;stroke-linecap:round;stroke-linejoin:round}
+.ok-t{margin:6px 0 10px;font-family:var(--f-slab),serif;font-weight:400;font-size:30px;color:#0B4A2A;line-height:1.1}
+.ok-n{display:inline-block;background:#F9DD6B;color:#3A2A00;font-family:var(--f-osw),sans-serif;font-weight:700;font-size:28px;padding:4px 26px;border-radius:999px}
+.ok-m{margin:14px 0 20px}
+.ok-m b{display:inline-block;font-family:var(--f-slab),serif;font-weight:400;font-size:76px;line-height:1.1;color:#0B4A2A;padding:0 14px;
+  background:linear-gradient(transparent 58%,#F7CC3E 58%,#F7CC3E 90%,transparent 90%);border-radius:6px}
+.kn{position:absolute;width:34px;height:42px;border-radius:50% 50% 45% 45%;background:radial-gradient(circle at 35% 30%,#FFE16B,#F2B01E 70%);box-shadow:0 3px 6px rgba(120,80,0,.3);opacity:.9}
+.kn.k1{left:-10px;top:84px;transform:rotate(-24deg)}
+.kn.k2{left:30px;top:150px;transform:rotate(18deg) scale(.7)}
+.kn.k3{right:-8px;top:130px;transform:rotate(30deg) scale(1.2)}
+.kn.k4{right:36px;top:60px;transform:rotate(-12deg) scale(.6)}
+.sheet.done .regv{position:relative;z-index:1}

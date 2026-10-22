@@ -206,9 +206,16 @@ export default function Caja() {
         <button className="regv" onClick={cobrar}>{I.printer}Registrar venta</button>
       </div></div>}
 
-      {ticket && <div className="sheet" onClick={() => setTicket(null)}><div className="panel center">
-        <p>Venta registrada</p><h1>#{ticket.id}</h1><h2>{mx(ticket.total)}</h2>
-        <button className="primary" onClick={() => setTicket(null)}>Nueva venta</button>
+      {ticket && <div className="sheet cobro done" onClick={() => setTicket(null)}><div className="panel" onClick={e => e.stopPropagation()}>
+        <i className="kn k1" /><i className="kn k2" /><i className="kn k3" /><i className="kn k4" />
+        <div className="ok">
+          <svg className="sp" viewBox="0 0 120 80"><path d="M10 40H2M20 12 14 6M100 12l6-6M110 40h8M20 68l-6 6M100 68l6 6" /></svg>
+          <span className="ok-c"><svg viewBox="0 0 24 24"><path d="m5 12.500 4.500 4.500L19 7.500" /></svg></span>
+        </div>
+        <h1 className="ok-t">¡Venta registrada!</h1>
+        <span className="ok-n">#{ticket.id}</span>
+        <div className="ok-m"><b>{mx(ticket.total)}</b></div>
+        <button className="regv" onClick={() => setTicket(null)}>Nueva venta</button>
       </div></div>}
     </div>
   );
