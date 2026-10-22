@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase, mx, Product, Category, Employee } from '@/lib/supabase';
 
 // Supabase exige un correo: al usuario "caja1" se le agrega este dominio interno
-const USER_DOMAIN = 'pancho.com';
+const USER_DOMAIN = 'esquites.com';
 const IDLE_MS = 30 * 60 * 1000; // cierra el turno tras 30 min sin uso
 
 type Cart = Record<number, { qty: number; note: string }>;
