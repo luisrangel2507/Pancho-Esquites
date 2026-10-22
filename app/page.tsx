@@ -20,6 +20,7 @@ export default function Caja() {
   const [pay, setPay] = useState<'cash' | 'card' | 'spei'>('cash');
   const [cash, setCash] = useState('');
   const [msg, setMsg] = useState('');
+  const [menu, setMenu] = useState(false);
   const [ticket, setTicket] = useState<{ id: number; total: number } | null>(null);
 
   useEffect(() => {
@@ -79,28 +80,57 @@ export default function Caja() {
   const cashCents = Math.round(parseFloat(cash || '0') * 100);
 
   return (
-    <div className="wrap">
-      <div className="top">
-        <b>🌽 Pancho Esquites</b>
-        <span><small>{emp.name}</small><button onClick={() => { setEmp(null); setPin(''); setCart({}); }}>Salir</button>
-          {emp.role === 'admin' && <a href="/admin">Admin</a>}</span>
+    <div className="app">
+      <header className="hdr">
+        <button className="burger" aria-label="Menú" onClick={() => setMenu(m => !m)}>
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+        </button>
+        <img className="logo" src="/logo.png" alt="Pancho Esquites" />
+        <div className="tag">Esquites,<br />Elotes<br /><em>y más…</em></div>
+        {emp.role === 'admin'
+          ? <a className="pill" href="/admin">👤 Admin ⌄</a>
+          : <span className="pill">👤 {emp.name}</span>}
+        {menu && <div className="menu">
+          <button onClick={() => { setEmp(null); setPin(''); setCart({}); setMenu(false); }}>Cerrar turno ({emp.name})</button>
+          {emp.role === 'admin' && <a href="/admin">Administración</a>}
+        </div>}
+      </header>
+      <div className="chips">
+        {cats.map(c => {
+          const n = prods.filter(p => p.category_id === c.id).reduce((a, p) => a + (cart[p.id]?.qty ?? 0), 0);
+          return <button key={c.id} className={'chip' + (c.id === cur ? ' on' : '')} onClick={() => setCur(c.id)}>
+            <i>{icon(c.name)}</i>{c.name}{n > 0 && <span className="n">{n}</span>}
+          </button>;
+        })}
       </div>
-      <div className="tabs">
-        {cats.map(c => <button key={c.id} className={c.id === cur ? 'on' : ''} onClick={() => setCur(c.id)}>{icon(c.name)} {c.name}</button>)}
-      </div>
-      <div className="grid">
+      <div className="grid3">
         {prods.filter(p => p.category_id === cur).map(p => (
-          <button key={p.id} className={'item' + (cart[p.id] ? ' sel' : '')} onClick={() => add(p.id, 1)}>
-            {p.photo_path
-              ? <img src={supabase.storage.from('products').getPublicUrl(p.photo_path).data.publicUrl} alt="" />
-              : <span className="ph">{icon(cats.find(c => c.id === p.category_id)?.name ?? '')}</span>}
-            <span className="b"><b>{p.short_name ?? p.name}</b><span className="price">{mx(p.price_cents)}</span></span>
-            {cart[p.id] && <span className="q">{cart[p.id].qty}</span>}
-          </button>
+          <div key={p.id} role="button" className={'card' + (cart[p.id] ? ' sel' : '')} onClick={() => add(p.id, 1)}>
+            <div className="ph">
+              {p.photo_path
+                ? <img src={supabase.storage.from('products').getPublicUrl(p.photo_path).data.publicUrl} alt="" />
+                : icon(cats.find(c => c.id === p.category_id)?.name ?? '')}
+            </div>
+            <div className="info">
+              <b>{p.short_name ?? p.name}</b>
+              <div className="prow"><span className="price">{mx(p.price_cents)}</span><span className="plus">+</span></div>
+            </div>
+            {cart[p.id] && <>
+              <span className="cnt">{cart[p.id].qty}</span>
+              <button className="minus" aria-label="Quitar uno" onClick={e => { e.stopPropagation(); add(p.id, -1); }}>−</button>
+            </>}
+          </div>
         ))}
       </div>
-      <div className="bar"><button disabled={!count} onClick={() => setCheckout(true)}>
-        {count ? `Cobrar · ${count} artículos · ${mx(total)}` : 'Agrega productos para cobrar'}</button></div>
+      <button className="pay" disabled={!count} onClick={() => setCheckout(true)}>
+        <span className="cartic">
+          <svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6.2" /><circle cx="9" cy="19" r="1.3" /><circle cx="17" cy="19" r="1.3" /></svg>
+        </span>
+        <span className="bd">{count}</span>
+        <span className="sep" />
+        <span className="ptxt">{count ? `Cobrar · ${count} artículo${count > 1 ? 's' : ''}` : 'Agrega productos para cobrar'}</span>
+        {count ? <span className="tot">{mx(total)}</span> : <span>›</span>}
+      </button>
 
       {checkout && <div className="sheet" onClick={e => e.target === e.currentTarget && setCheckout(false)}><div className="panel">
         <h2>Cobrar {mx(total)}</h2>
@@ -175,11 +205,14 @@ function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
       if (p.length === 6 || error?.message.includes('intentos')) { setErr(error?.message ?? 'PIN incorrecto'); setPin(''); }
     }
   }
-  return <Shell>
-    <h2>Ingresa tu <span style={{ color: '#B8860B' }}>PIN</span></h2>
-    <p className="dots">{'●'.repeat(pin.length) || <span style={{ fontSize: 16, letterSpacing: 0, color: '#7A6450' }}>para abrir caja</span>}</p>
+  return <div className="pin">
+    <div className="hero"><img src="/logo.png" alt="Pancho Esquites" /></div>
+    <h1 className="ptitle">Ingresa tu <span>PIN</span></h1>
+    <p className="psub">para abrir caja</p>
+    <div className="circles">{Array.from({ length: Math.max(4, pin.length) }, (_, i) => <i key={i} className={i < pin.length ? 'f' : ''} />)}</div>
     <p className="err">{err}</p>
-    <div className="pad">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) =>
-      k ? <button key={i} onClick={() => press(k)}>{k}</button> : <span key={i} />)}</div>
-  </Shell>;
+    <div className="pad2">{['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) =>
+      k ? <button key={i} aria-label={k === '⌫' ? 'Borrar' : k} onClick={() => press(k)}>
+        {k === '⌫' ? <svg viewBox="0 0 24 24"><path d="M21 5H9l-6 7 6 7h12z" /><path d="m13 9 4 6m0-6-4 6" /></svg> : k}</button> : <span key={i} />)}</div>
+  </div>;
 }
