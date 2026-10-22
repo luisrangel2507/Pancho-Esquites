@@ -219,3 +219,53 @@ button.pill{font-family:inherit;cursor:pointer}
 .menu-bg{position:fixed;inset:0;z-index:9;background:transparent}
 .menu{z-index:10}
 .menu .mx{border-top:1px solid rgba(255,255,255,.15);margin-top:4px;color:#A99B8E}
+
+/* ───── Empleados ───── */
+.sheet.staff .panel{padding-bottom:calc(14px + env(safe-area-inset-bottom));max-height:calc(100dvh - 90px)}
+.ico.big{width:40px;height:40px}.ico.sm{width:18px;height:18px;color:#E2A800}.ico.fld{width:22px;height:22px;color:#9A958A}
+.st-h{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.st-ic{color:#0B4A2A;flex:0 0 44px;display:grid;place-items:center}
+.st-ic .ico{width:44px;height:44px}
+.st-t{flex:1}.st-t h2{margin:0;font-family:var(--f-slab),serif;font-weight:400;font-size:26px}
+.st-t small{display:block;color:var(--muted);font-size:13px;line-height:1.3}
+.st-x{width:44px;height:44px;border-radius:50%;border:none;background:#F1E3BE;color:#5B4A1E;font-size:28px;line-height:1;padding:0 0 3px}
+.st-list{background:#FFF9EA;border-radius:18px;box-shadow:0 2px 8px rgba(110,80,20,.14);padding:4px 12px}
+.st-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #EFE3C2}
+.st-row.off{opacity:.6}
+.st-list>div:last-child .st-row{border-bottom:none}
+.av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;flex:0 0 46px}
+.av .ico{width:26px;height:26px}
+.av.gold{background:#FBE5A0;color:#B27A00}.av.green{background:#D7EDD3;color:#0B4A2A}
+.st-n{flex:1;min-width:0}
+.st-nm{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.st-nm b{font-size:18px;line-height:1.1}
+.st-nm em{font-style:normal;font-size:12px;font-weight:700;padding:2px 9px;border-radius:8px}
+.bd-a{background:#F9DD6B;color:#5B4300}.bd-e{background:#E8E6DF;color:#4A463C}
+.st-n small{color:var(--muted);font-size:13px;line-height:1.2;display:block}
+.st-b{display:flex;flex-direction:column;gap:6px}
+.st-b button{display:flex;align-items:center;gap:6px;border:none;border-radius:999px;padding:8px 11px;font-weight:700;font-size:13px;white-space:nowrap}
+.st-b .ico{width:18px;height:18px}
+.b-pin{background:#D7EDD3;color:#0B4A2A}.b-off{background:#FBE1DE;color:#C62828}.b-on{background:#D7EDD3;color:#0B4A2A}
+.st-mk,.st-del{display:block;width:100%;margin:-4px 0 8px;padding:8px;border:none;border-radius:10px;background:#F1E3BE;color:#5B4A1E;font-weight:700;font-size:13px}
+.st-del{background:#FBE1DE;color:#C62828}
+.st-pin{padding:4px 0 10px}.st-pin input{margin:0 0 8px}
+.regv.sm{padding:12px;font-size:16px;border-radius:14px}
+.st-new{display:flex;align-items:center;gap:10px;margin:18px 0 6px;padding-top:14px;border-top:1px solid #E6D6AE}
+.st-ic2{color:#0B4A2A;display:grid;place-items:center}.st-ic2 .ico{width:46px;height:46px}
+.st-new h3{margin:0;font-size:21px}.st-new small{color:var(--muted);font-size:13px;line-height:1.3;display:block}
+.st-l{display:block;font-weight:700;font-size:16px;margin:12px 0 6px}
+.st-f{position:relative;display:flex;align-items:center;gap:10px;background:#fff;border-radius:14px;padding:0 12px;box-shadow:0 2px 6px rgba(110,80,20,.1);border:1px solid #EFE3C2}
+.st-f input{flex:1;border:none;outline:none;margin:0;padding:15px 0;font-size:18px;background:none}
+.st-f .eye{border:none;background:none;color:#9A958A;padding:4px;display:grid}
+.st-f .eye .ico{width:26px;height:26px}
+.st-roles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rl{position:relative;display:flex;align-items:center;gap:8px;text-align:left;padding:12px 10px;border-radius:16px;border:2px solid #EFE3C2;background:#fff;color:var(--ink)}
+.rl.on{border-color:#F4BE2C;background:#FFF6D8}
+.rl:disabled{opacity:.5}
+.rl b{display:block;font-size:17px}.rl small{display:block;font-size:12px;color:var(--muted);line-height:1.25}
+.rl-ic{flex:0 0 34px;display:grid;place-items:center}.rl-ic .ico{width:34px;height:34px}
+.rl-ic.gold{color:#F4BE2C}.rl-ic.gray{color:#7A7A7A}
+.rd{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;border:2px solid #D8D2C2;display:grid;place-items:center;font-style:normal;color:#fff;font-size:15px;font-weight:800}
+.rd.ck{background:#F4BE2C;border-color:#F4BE2C}
+.sheet.staff .regv{margin-top:6px}.sheet.staff .regv:disabled{opacity:.55}
+.st-close{display:block;margin:12px auto 0;padding:14px 48px;border-radius:999px;border:1.5px solid #D8D2C2;background:#fff;font-size:18px;color:var(--ink)}

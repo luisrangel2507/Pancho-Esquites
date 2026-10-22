@@ -284,6 +284,23 @@ function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
   </div>;
 }
 
+const sx = (d: React.ReactNode, c = 'ico') => <svg viewBox="0 0 24 24" className={c}>{d}</svg>;
+const S = {
+  people: sx(<><circle cx="9" cy="8" r="3.600" fill="currentColor" stroke="none" /><path d="M2.500 20a6.500 6.500 0 0 1 13 0z" fill="currentColor" stroke="none" /><circle cx="17" cy="9" r="2.800" fill="#F7CC3E" stroke="none" /><path d="M13.500 20a5.500 5.500 0 0 1 8.500-4.500V20z" fill="#F7CC3E" stroke="none" /></>, 'ico big'),
+  user: sx(<><circle cx="12" cy="8.500" r="4" fill="currentColor" stroke="none" /><path d="M4.500 21a7.500 7.500 0 0 1 15 0z" fill="currentColor" stroke="none" /></>),
+  userG: sx(<><circle cx="12" cy="8.500" r="4" fill="currentColor" stroke="none" /><path d="M4.500 21a7.500 7.500 0 0 1 15 0z" fill="currentColor" stroke="none" /></>, 'ico fld'),
+  lock: sx(<><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor" stroke="none" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>),
+  lockG: sx(<><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor" stroke="none" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>, 'ico fld'),
+  power: sx(<><path d="M12 3v8M6.500 6.500a8 8 0 1 0 11 0" /></>),
+  crown: sx(<path d="M3 8l4.500 4L12 5l4.500 7L21 8l-2 11H5z" fill="currentColor" stroke="none" />, 'ico sm'),
+  userPlus: sx(<><circle cx="10" cy="8.500" r="4" fill="currentColor" stroke="none" /><path d="M2.500 21a7.500 7.500 0 0 1 15 0z" fill="currentColor" stroke="none" /><path d="M19 8v6M16 11h6" strokeWidth="2.400" /></>, 'ico'),
+  userPlusW: sx(<><circle cx="10" cy="8.500" r="4" fill="currentColor" stroke="none" /><path d="M2.500 21a7.500 7.500 0 0 1 15 0z" fill="currentColor" stroke="none" /><path d="M19 8v6M16 11h6" strokeWidth="2.400" /></>, 'ico'),
+  eye: sx(<><path d="M2 12s3.600-7 10-7 10 7 10 7-3.600 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></>),
+  eyeOff: sx(<><path d="M3 3l18 18M10.600 6.200A9.800 9.800 0 0 1 12 6c6.400 0 10 6 10 6a17 17 0 0 1-3.200 3.800M6.500 7.600A17 17 0 0 0 2 12s3.600 7 10 7a9.700 9.700 0 0 0 4-.9" /></>),
+  till: sx(<><rect x="3" y="11" width="18" height="9" rx="2" fill="currentColor" stroke="none" /><path d="M6 11V8h8l2 3M8 5h6" /></>, 'ico big'),
+  gear: sx(<><circle cx="12" cy="12" r="3" /><path d="M12 2.500l1.600 2.300 2.800-.5.8 2.700 2.600 1.200-.9 2.700 1.700 2.200-2.200 1.800.1 2.800-2.800.5-1.500 2.400-2.600-1.200-2.600 1.200-1.500-2.400-2.800-.5.1-2.800L2.200 13.500 3.900 11.300 3 8.600l2.600-1.200.8-2.700 2.800.5z" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="3" fill="#fff" stroke="none" /></>, 'ico big'),
+};
+
 type Person = { id: string; name: string; role: 'cajero' | 'admin'; active: boolean };
 
 function Staff({ pin, onClose, onPassed }: { pin: string; onClose: () => void; onPassed: () => void }) {
@@ -319,30 +336,62 @@ function Staff({ pin, onClose, onPassed }: { pin: string; onClose: () => void; o
     const { error } = await supabase.rpc('staff_delete', { p_admin_pin: pin, p_id: p.id });
     if (error) setErr(error.message); else load();
   }
-  return <div className="sheet" onClick={e => e.target === e.currentTarget && onClose()}><div className="panel">
-    <h2>Empleados</h2>
-    {list.map(p => <div key={p.id}>
-      <div className="row"><span>{p.name} · {p.role}{p.active ? '' : ' (inactivo)'}</span>
-        <span>
-          <button onClick={() => { setEdit(edit === p.id ? null : p.id); setEp(''); }}>PIN</button>{' '}
-          {p.active && p.role === 'cajero' && <><button onClick={() => makeAdmin(p)}>Hacer admin</button>{' '}</>}
-          <button onClick={() => save(p, { active: !p.active })}>{p.active ? 'Desactivar' : 'Activar'}</button>
-          {!p.active && <>{' '}<button onClick={() => remove(p)}>Eliminar</button></>}
-        </span></div>
-      {edit === p.id && <div>
-        <input inputMode="numeric" maxLength={PIN_LEN} placeholder="Nuevo PIN (6 números)" value={ep} onChange={e => setEp(e.target.value.replace(/\D/g, ''))} />
-        <button className="primary" disabled={ep.length !== PIN_LEN} onClick={() => save(p, { pin: ep })}>Guardar PIN</button>
-      </div>}
-    </div>)}
-    <h3>Nuevo empleado</h3>
-    <input placeholder="Nombre" value={name} onChange={e => setName(e.target.value)} />
-    <input inputMode="numeric" maxLength={PIN_LEN} placeholder="PIN (6 números)" value={np} onChange={e => setNp(e.target.value.replace(/\D/g, ''))} />
-    <div className="cats" style={{ gridTemplateColumns: '1fr 1fr' }}>
-      <button className={(hasAdmin || role === 'cajero') ? 'on' : ''} onClick={() => setRole('cajero')}>Cajero</button>
-      <button className={!hasAdmin && role === 'admin' ? 'on' : ''} disabled={hasAdmin} onClick={() => setRole('admin')}>Admin</button></div>
-    {hasAdmin && <p className="muted">Ya hay un administrador activo. Para cambiarlo usa "Hacer admin" en el empleado.</p>}
+  const [showPin, setShowPin] = useState(false);
+  const adminRole = !hasAdmin && role === 'admin';
+  return <div className="sheet cobro staff" onClick={e => e.target === e.currentTarget && onClose()}><div className="panel">
+    <div className="grab" />
+    <div className="st-h">
+      <span className="st-ic">{S.people}</span>
+      <div className="st-t"><h2>Empleados</h2><small>Gestiona los empleados que pueden acceder al punto de venta.</small></div>
+      <button className="st-x" aria-label="Cerrar" onClick={onClose}>×</button>
+    </div>
+    <div className="st-list">
+      {list.map(p => <div key={p.id}>
+        <div className={'st-row' + (p.active ? '' : ' off')}>
+          <span className={'av ' + (p.role === 'admin' ? 'gold' : 'green')}>{S.user}</span>
+          <div className="st-n">
+            <div className="st-nm"><b>{p.name}</b>{p.role === 'admin' && <span className="crown">{S.crown}</span>}
+              <em className={p.role === 'admin' ? 'bd-a' : 'bd-e'}>{p.role === 'admin' ? 'Admin' : 'Empleado'}</em></div>
+            <small>{!p.active ? 'Inactivo' : p.role === 'admin' ? 'Administrador del sistema' : 'Cajero'}</small>
+          </div>
+          <div className="st-b">
+            <button className="b-pin" onClick={() => { setEdit(edit === p.id ? null : p.id); setEp(''); }}>{S.lock}PIN</button>
+            {p.active
+              ? <button className="b-off" onClick={() => save(p, { active: false })}>{S.power}Desactivar</button>
+              : <button className="b-on" onClick={() => save(p, { active: true })}>{S.power}Activar</button>}
+          </div>
+        </div>
+        {(p.active && p.role === 'cajero') && <button className="st-mk" onClick={() => makeAdmin(p)}>Hacer admin a {p.name}</button>}
+        {!p.active && <button className="st-del" onClick={() => remove(p)}>Eliminar a {p.name}</button>}
+        {edit === p.id && <div className="st-pin">
+          <input inputMode="numeric" maxLength={PIN_LEN} placeholder="Nuevo PIN (6 números)" value={ep} onChange={e => setEp(e.target.value.replace(/\D/g, ''))} />
+          <button className="regv sm" disabled={ep.length !== PIN_LEN} onClick={() => save(p, { pin: ep })}>Guardar PIN</button>
+        </div>}
+      </div>)}
+    </div>
+
+    <div className="st-new">
+      <span className="st-ic2">{S.userPlus}</span>
+      <div><h3>Nuevo empleado</h3><small>Agrega un nuevo empleado y asigna su rol en el sistema.</small></div>
+    </div>
+    <label className="st-l" htmlFor="st-name">Nombre completo</label>
+    <div className="st-f">{S.userG}<input id="st-name" placeholder="Ej. Juan Pérez" value={name} onChange={e => setName(e.target.value)} /></div>
+    <label className="st-l" htmlFor="st-pin">PIN de acceso</label>
+    <div className="st-f">{S.lockG}<input id="st-pin" type={showPin ? 'text' : 'password'} inputMode="numeric" maxLength={PIN_LEN} placeholder="6 números"
+      value={np} onChange={e => setNp(e.target.value.replace(/\D/g, ''))} />
+      <button type="button" className="eye" aria-label="Ver PIN" onClick={() => setShowPin(v => !v)}>{showPin ? S.eye : S.eyeOff}</button></div>
+    <div className="st-l">Tipo de empleado</div>
+    <div className="st-roles">
+      <button className={'rl' + (!adminRole ? ' on' : '')} onClick={() => setRole('cajero')}>
+        <span className="rl-ic gold">{S.till}</span><div><b>Cajero</b><small>Puede realizar ventas y operaciones básicas.</small></div>
+        <i className={'rd' + (!adminRole ? ' ck' : '')}>{!adminRole && '✓'}</i></button>
+      <button className={'rl' + (adminRole ? ' on' : '')} disabled={hasAdmin} onClick={() => setRole('admin')}>
+        <span className="rl-ic gray">{S.gear}</span><div><b>Admin</b><small>Acceso completo a todas las funciones.</small></div>
+        <i className={'rd' + (adminRole ? ' ck' : '')}>{adminRole && '✓'}</i></button>
+    </div>
+    {hasAdmin && <p className="muted">Ya hay un administrador activo. Para cambiarlo usa "Hacer admin" en un empleado.</p>}
     <p className="err">{err}</p>
-    <button className="primary" disabled={!name.trim() || np.length !== PIN_LEN} onClick={() => save(null, { pin: np })}>Agregar</button>
-    <p><button onClick={onClose}>Cerrar</button></p>
+    <button className="regv" disabled={!name.trim() || np.length !== PIN_LEN} onClick={() => save(null, { pin: np })}>{S.userPlusW}Agregar empleado</button>
+    <button className="st-close" onClick={onClose}>Cerrar</button>
   </div></div>;
 }
