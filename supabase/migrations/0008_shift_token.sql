@@ -27,6 +27,10 @@ begin
     return null;
   end if;
   delete from pin_attempts where device_id = auth.uid();
+  -- costo 8 en vez de 10: unas 7 veces más rápido; con 6 dígitos la protección real es el límite de intentos
+  if e.pin_hash not like '$2a$08$%' then
+    update employees set pin_hash = crypt(p_pin, gen_salt('bf', 8)) where id = e.id;
+  end if;
   return e;
 end $$;
 
@@ -53,11 +57,13 @@ begin
   return e;
 end $$;
 
--- Entrar al turno: PIN incorrecto devuelve 0 filas (sin error) para que cuente el intento
-create or replace function shift_start(p_pin text)
-returns table(employee_id uuid, name text, role text, token text)
+-- Entrar al turno: PIN incorrecto devuelve 0 filas (sin error) para que cuente el intento.
+-- Devuelve también el estado de la caja para entrar en un solo viaje. Requiere 0007_cash.
+drop function if exists shift_start(text);
+create function shift_start(p_pin text)
+returns table(employee_id uuid, name text, role text, token text, cash jsonb)
 language plpgsql security definer set search_path = public, extensions as $$
-declare e employees; tk text;
+declare e employees; tk text; sid bigint;
 begin
   if p_pin like 'T:%' then raise exception 'PIN incorrecto'; end if;
   e := pin_verify(p_pin);
@@ -65,7 +71,9 @@ begin
   tk := encode(gen_random_bytes(24), 'hex');
   delete from shifts where last_used < now() - interval '1 day';
   insert into shifts(token_hash, employee_id, device_id) values (encode(digest(tk, 'sha256'), 'hex'), e.id, auth.uid());
-  return query select e.id, e.name, e.role, 'T:' || tk;
+  select id into sid from cash_sessions where closed_at is null;
+  return query select e.id, e.name, e.role, 'T:' || tk,
+    case when sid is null then jsonb_build_object('open', false) else cash_summary(sid) end;
 end $$;
 
 -- Entrada vieja (app sin pase de turno): mismo arreglo del límite de intentos

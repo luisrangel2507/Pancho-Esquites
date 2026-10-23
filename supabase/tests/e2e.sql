@@ -25,8 +25,9 @@ begin
   perform tst.chk('caja ve el menú', prod_ch is not null and prod_md is not null);
 
   perform tst.chk('PIN incorrecto no entra', (select count(*) from shift_start('999999')) = 0);
-  select token into tk from shift_start('111111');
+  select token, cash into tk, r from shift_start('111111');
   perform tst.chk('entrar con PIN da pase', tk like 'T:%', tk);
+  perform tst.chk('la entrada trae el estado de la caja', (r->>'open')::boolean = false, r::text);
   select token into tk2 from shift_start('222222');
   perform tst.chk('pase de cajero', tk2 like 'T:%');
   perform tst.err('un pase no sirve como PIN para otro pase', format($q$select shift_start(%L)$q$, tk), 'PIN incorrecto');
@@ -86,6 +87,9 @@ begin
   perform shift_end(tk);
 end $$;
 
+reset role;
+select tst.chk('PIN se re-guarda con costo 8 al entrar', (select pin_hash like '$2a$08$%' from employees where name = 'Dueño'));
+set role authenticated;
 -- otro dispositivo no puede usar un pase ajeno
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
 create temp table tk as select token from shift_start('111111');

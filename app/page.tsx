@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, rpc, mx, Product, Category, Employee } from '@/lib/supabase';
 import Reports from './reports';
 import { OpenCash, CloseCash, type Cash } from './cash';
@@ -32,6 +32,7 @@ export default function Caja() {
   const [reports, setReports] = useState(false);
   const [caja, setCaja] = useState<Cash | 'na' | null>(null);
   const [closing, setClosing] = useState(false);
+  const loginCash = useRef<Cash | null>(null);
 
   function logout() {
     if (pin.startsWith('T:')) rpc('shift_end', { p_token: pin });
@@ -65,6 +66,7 @@ export default function Caja() {
 
   useEffect(() => {
     if (!emp) { setCaja(null); setClosing(false); return; }
+    if (loginCash.current) { setCaja(loginCash.current); loginCash.current = null; return; }
     rpc('cash_status', { p_pin: pin }).then(({ data, error }) => {
       // si la base aún no tiene las funciones de caja, la app sigue funcionando sin ellas
       if (error) setCaja(/find the function/i.test(error.message) ? 'na' : { open: false });
@@ -84,16 +86,16 @@ export default function Caja() {
   }, [emp]);
 
   useEffect(() => {
-    if (!emp) return;
+    if (!session) return;
     (async () => {
       const [c, p] = await Promise.all([
         supabase.from('categories').select('id,name').order('sort'),
         supabase.from('products').select('*').eq('active', true).order('sort'),
       ]);
       setCats(c.data ?? []); setProds(p.data ?? []);
-      setCur(c.data?.[0]?.id ?? null);
+      setCur(cur => cur ?? c.data?.[0]?.id ?? null);
     })();
-  }, [emp]);
+  }, [session]);
 
   const total = useMemo(() => Object.entries(cart).reduce((s, [id, v]) =>
     s + (prods.find(p => p.id === +id)?.price_cents ?? 0) * v.qty, 0), [cart, prods]);
@@ -102,7 +104,7 @@ export default function Caja() {
   if (session === null) return null;
   if (!session) return <DeviceLogin />;
 
-  if (!emp) return <PinScreen onOk={(e, p) => { setEmp(e); setPin(p); }} />;
+  if (!emp) return <PinScreen onOk={(e, p, c) => { loginCash.current = c ?? null; setEmp(e); setPin(p); }} />;
 
   const add = (id: number, d: number) => setCart(c => {
     const q = (c[id]?.qty ?? 0) + d; const n = { ...c };
@@ -293,7 +295,7 @@ function DeviceLogin() {
   </Shell>;
 }
 
-function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
+function PinScreen({ onOk }: { onOk: (e: Employee, pin: string, cash?: Cash) => void }) {
   const [pin, setPin] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   async function press(k: string) {
     setErr('');
@@ -309,7 +311,7 @@ function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
         pass = p;
       }
       setBusy(false);
-      if (!error && data?.[0] && pass) { onOk(data[0], pass); return; }
+      if (!error && data?.[0] && pass) { onOk(data[0], pass, data[0].cash ?? undefined); return; }
       setErr(error?.message ?? 'PIN incorrecto'); setPin('');
     }
   }
