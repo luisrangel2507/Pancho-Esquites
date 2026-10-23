@@ -12,3 +12,10 @@ export const mx = (cents: number) =>
 export type Product = { id: number; category_id: number; name: string; short_name: string | null; price_cents: number; photo_path: string | null };
 export type Category = { id: number; name: string };
 export type Employee = { employee_id: string; name: string; role: 'cajero' | 'admin' };
+
+// Llama una función de la base; si el turno venció avisa a la app para pedir el PIN otra vez
+export async function rpc(fn: string, args?: Record<string, unknown>) {
+  const res = await supabase.rpc(fn, args);
+  if (res.error && /Turno vencido/.test(res.error.message)) window.dispatchEvent(new Event('turno-vencido'));
+  return res;
+}

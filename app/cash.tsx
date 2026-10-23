@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { supabase, mx } from '@/lib/supabase';
+import { rpc, mx } from '@/lib/supabase';
 
 export type CashOpen = {
   id: number; open: true; opened_at: string; opened_by: string; opening_cents: number;
@@ -24,7 +24,7 @@ export function OpenCash({ pin, name, onOpened, onLogout }: { pin: string; name:
   const [amt, setAmt] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   async function open() {
     setErr(''); setBusy(true);
-    const { data, error } = await supabase.rpc('cash_open', { p_pin: pin, p_opening_cents: toCents(amt) });
+    const { data, error } = await rpc('cash_open', { p_pin: pin, p_opening_cents: toCents(amt) });
     setBusy(false);
     if (error) return setErr(error.message);
     onOpened(data as CashOpen);
@@ -54,14 +54,14 @@ export function CloseCash({ pin, onClose, onDone }: { pin: string; onClose: () =
   const [counted, setCounted] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<(Omit<CashOpen, 'open'> & { open: boolean }) | null>(null);
   useEffect(() => {
-    supabase.rpc('cash_status', { p_pin: pin }).then(({ data, error }) => {
+    rpc('cash_status', { p_pin: pin }).then(({ data, error }) => {
       if (error) setErr(error.message); else if (data?.open) setS(data as CashOpen); else onDone();
     });
   }, []);
   async function close() {
     if (!confirm('¿Cerrar la caja? Ya no podrás cobrar hasta abrir otra.')) return;
     setErr(''); setBusy(true);
-    const { data, error } = await supabase.rpc('cash_close', { p_pin: pin, p_counted_cents: toCents(counted) });
+    const { data, error } = await rpc('cash_close', { p_pin: pin, p_counted_cents: toCents(counted) });
     setBusy(false);
     if (error) return setErr(error.message);
     setRes(data);
@@ -115,7 +115,7 @@ export function CloseCash({ pin, onClose, onDone }: { pin: string; onClose: () =
 export function CashHistory({ pin }: { pin: string }) {
   const [rows, setRows] = useState<(Omit<CashOpen, 'open'> & { open: boolean })[] | null>(null);
   useEffect(() => {
-    supabase.rpc('cash_history', { p_admin_pin: pin, p_limit: 15 }).then(({ data, error }) => setRows(error ? [] : data ?? []));
+    rpc('cash_history', { p_admin_pin: pin, p_limit: 15 }).then(({ data, error }) => setRows(error ? [] : data ?? []));
   }, []);
   if (!rows || rows.length === 0) return null;
   return <>{rows.map(r => <div className="cs-hist" key={r.id}>

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { supabase, mx } from '@/lib/supabase';
+import { rpc, mx } from '@/lib/supabase';
 import { CashHistory } from './cash';
 
 type Row = { name: string; qty: number; cents: number };
@@ -88,14 +88,14 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
   const load = async () => {
     setErr('');
     const [from, to] = range(period);
-    const { data, error } = await supabase.rpc('sales_report', { p_admin_pin: pin, p_from: from.toISOString(), p_to: to.toISOString() });
+    const { data, error } = await rpc('sales_report', { p_admin_pin: pin, p_from: from.toISOString(), p_to: to.toISOString() });
     if (error) { setErr(error.message); setData(null); } else setData(data as Report);
   };
   useEffect(() => { setData(null); load(); }, [period]);
 
   async function anular(id: number) {
     if (!confirm(`¿Anular la venta #${id}? Se regresa el inventario.`)) return;
-    const { error } = await supabase.rpc('void_sale', { p_admin_pin: pin, p_sale_id: id });
+    const { error } = await rpc('void_sale', { p_admin_pin: pin, p_sale_id: id });
     if (error) setErr(error.message); else load();
   }
 

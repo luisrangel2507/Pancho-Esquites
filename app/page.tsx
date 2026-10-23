@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { supabase, mx, Product, Category, Employee } from '@/lib/supabase';
+import { supabase, rpc, mx, Product, Category, Employee } from '@/lib/supabase';
 import Reports from './reports';
 import { OpenCash, CloseCash, type Cash } from './cash';
 
@@ -11,14 +11,14 @@ const AUTO_PASS = process.env.NEXT_PUBLIC_CAJA_PASS;
 const toEmail = (u: string) => u.includes('@') ? u.trim() : `${u.trim().toLowerCase()}@${USER_DOMAIN}`;
 const MAX_ADMINS = 2;
 const PIN_LEN = 6; // el PIN es de exactamente 6 dígitos y se verifica una sola vez, al completarlo
-const IDLE_MS = 30 * 60 * 1000; // cierra el turno tras 30 min sin uso
+const IDLE_MS = 3 * 60 * 60 * 1000; // cierra el turno tras 3 horas sin uso (igual que el pase en la base)
 
 type Cart = Record<number, { qty: number; note: string }>;
 
 export default function Caja() {
   const [session, setSession] = useState<boolean | null>(null);
   const [emp, setEmp] = useState<Employee | null>(null);
-  const [pin, setPin] = useState(''); // se guarda solo en memoria mientras dura el turno
+  const [pin, setPin] = useState(''); // pase de turno (o PIN si la base es vieja); solo en memoria mientras dura el turno
   const [cats, setCats] = useState<Category[]>([]);
   const [prods, setProds] = useState<Product[]>([]);
   const [cur, setCur] = useState<number | null>(null);
@@ -32,6 +32,16 @@ export default function Caja() {
   const [reports, setReports] = useState(false);
   const [caja, setCaja] = useState<Cash | 'na' | null>(null);
   const [closing, setClosing] = useState(false);
+
+  function logout() {
+    if (pin.startsWith('T:')) rpc('shift_end', { p_token: pin });
+    setEmp(null); setPin(''); setCart({}); setCheckout(false); setTicket(null); setClosing(false); setMenu(false);
+  }
+  useEffect(() => {
+    const h = () => { setEmp(null); setPin(''); setCart({}); setCheckout(false); setTicket(null); setClosing(false); };
+    window.addEventListener('turno-vencido', h);
+    return () => window.removeEventListener('turno-vencido', h);
+  }, []);
   const [ticket, setTicket] = useState<{ id: number; total: number } | null>(null);
 
   // Con NEXT_PUBLIC_CAJA_USER/PASS definidas la caja se activa sola y solo se pide el PIN
@@ -55,7 +65,7 @@ export default function Caja() {
 
   useEffect(() => {
     if (!emp) { setCaja(null); setClosing(false); return; }
-    supabase.rpc('cash_status', { p_pin: pin }).then(({ data, error }) => {
+    rpc('cash_status', { p_pin: pin }).then(({ data, error }) => {
       // si la base aún no tiene las funciones de caja, la app sigue funcionando sin ellas
       if (error) setCaja(/find the function/i.test(error.message) ? 'na' : { open: false });
       else setCaja(data as Cash);
@@ -65,7 +75,7 @@ export default function Caja() {
   useEffect(() => {
     if (!emp) return;
     let t: ReturnType<typeof setTimeout>;
-    const out = () => { setEmp(null); setPin(''); setCart({}); setCheckout(false); setTicket(null); };
+    const out = () => logout();
     const reset = () => { clearTimeout(t); t = setTimeout(out, IDLE_MS); };
     const evs = ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const;
     evs.forEach(e => window.addEventListener(e, reset, { passive: true }));
@@ -104,7 +114,7 @@ export default function Caja() {
     setMsg('');
     const items = Object.entries(cart).map(([id, v]) => ({ product_id: +id, qty: v.qty, note: v.note }));
     const cashCents = pay === 'cash' ? Math.round(parseFloat(cash || '0') * 100) : null;
-    const { data, error } = await supabase.rpc('register_sale', { p_pin: pin, p_items: items, p_pay: pay, p_cash_cents: cashCents });
+    const { data, error } = await rpc('register_sale', { p_pin: pin, p_items: items, p_pay: pay, p_cash_cents: cashCents });
     if (error) return setMsg(error.message);
     setTicket({ id: data[0].sale_id, total: data[0].total_cents });
     setCart({}); setCash(''); setCheckout(false);
@@ -130,7 +140,7 @@ export default function Caja() {
           : <span className="pill">{USER_SVG}{emp.name}</span>}
         {menu && <div className="menu-bg" onClick={() => setMenu(false)} />}
         {menu && <div className="menu">
-          <button onClick={() => { setEmp(null); setPin(''); setCart({}); setMenu(false); }}>Cerrar turno ({emp.name})</button>
+          <button onClick={() => { setMenu(false); logout(); }}>Cerrar turno ({emp.name})</button>
           {caja && caja !== 'na' && caja.open && <button onClick={() => { setClosing(true); setMenu(false); }}>Cerrar caja</button>}
           {emp.role === 'admin' && <button onClick={() => { setReports(true); setMenu(false); }}>Ventas e informes</button>}
           {emp.role === 'admin' && <button onClick={() => { setStaff(true); setMenu(false); }}>Empleados</button>}
@@ -184,9 +194,9 @@ export default function Caja() {
 
       {emp && caja === null && <div className="sheet cobro cashs"><div className="panel center">Cargando caja…</div></div>}
       {emp && caja && caja !== 'na' && !caja.open && <OpenCash pin={pin} name={emp.name} onOpened={c => setCaja(c)}
-        onLogout={() => { setEmp(null); setPin(''); setCart({}); }} />}
+        onLogout={logout} />}
       {closing && <CloseCash pin={pin} onClose={() => setClosing(false)}
-        onDone={() => { setClosing(false); setEmp(null); setPin(''); setCart({}); }} />}
+        onDone={logout} />}
       {reports && <Reports pin={pin} onClose={() => setReports(false)} />}
       {staff && <Staff pin={pin} meId={emp.employee_id} onClose={() => setStaff(false)} />}
 
@@ -292,9 +302,14 @@ function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
     setPin(p);
     if (p.length === PIN_LEN && k !== '⌫') {
       setBusy(true);
-      const { data, error } = await supabase.rpc('pin_login', { p_pin: p });
+      let { data, error } = await rpc('shift_start', { p_pin: p });
+      let pass = data?.[0]?.token as string | undefined;
+      if (error && /find the function/i.test(error.message)) {
+        ({ data, error } = await rpc('pin_login', { p_pin: p }));
+        pass = p;
+      }
       setBusy(false);
-      if (!error && data?.[0]) { onOk(data[0], p); return; }
+      if (!error && data?.[0] && pass) { onOk(data[0], pass); return; }
       setErr(error?.message ?? 'PIN incorrecto'); setPin('');
     }
   }
@@ -336,13 +351,13 @@ function Staff({ pin, meId, onClose }: { pin: string; meId: string; onClose: () 
   const [edit, setEdit] = useState<string | null>(null); const [ep, setEp] = useState('');
   const [err, setErr] = useState('');
   const load = async () => {
-    const { data, error } = await supabase.rpc('staff_list', { p_admin_pin: pin });
+    const { data, error } = await rpc('staff_list', { p_admin_pin: pin });
     if (error) setErr(error.message); else setList(data ?? []);
   };
   useEffect(() => { load(); }, []);
   async function save(p: Person | null, patch: { pin?: string; active?: boolean }) {
     setErr('');
-    const { error } = await supabase.rpc('staff_upsert', {
+    const { error } = await rpc('staff_upsert', {
       p_admin_pin: pin, p_id: p?.id ?? null, p_name: p?.name ?? name, p_pin: patch.pin ?? null,
       p_role: p?.role ?? (hasAdmin ? 'cajero' : role), p_active: patch.active ?? p?.active ?? true,
     });
@@ -354,19 +369,19 @@ function Staff({ pin, meId, onClose }: { pin: string; meId: string; onClose: () 
   async function makeAdmin(p: Person) {
     if (!confirm(`¿Dar permisos de administrador a ${p.name}?`)) return;
     setErr('');
-    const { error } = await supabase.rpc('staff_make_admin', { p_admin_pin: pin, p_to: p.id });
+    const { error } = await rpc('staff_make_admin', { p_admin_pin: pin, p_to: p.id });
     if (error) setErr(error.message); else load();
   }
   async function demote(p: Person) {
     if (!confirm(`¿Quitar permisos de administrador a ${p.name}? Quedará como cajero.`)) return;
     setErr('');
-    const { error } = await supabase.rpc('staff_upsert', { p_admin_pin: pin, p_id: p.id, p_name: p.name, p_pin: null, p_role: 'cajero', p_active: true });
+    const { error } = await rpc('staff_upsert', { p_admin_pin: pin, p_id: p.id, p_name: p.name, p_pin: null, p_role: 'cajero', p_active: true });
     if (error) setErr(error.message); else load();
   }
   async function remove(p: Person) {
     if (!confirm(`¿Borrar a ${p.name}? No se puede deshacer.`)) return;
     setErr('');
-    const { error } = await supabase.rpc('staff_delete', { p_admin_pin: pin, p_id: p.id });
+    const { error } = await rpc('staff_delete', { p_admin_pin: pin, p_id: p.id });
     if (error) setErr(error.message); else load();
   }
   const [showPin, setShowPin] = useState(false);
