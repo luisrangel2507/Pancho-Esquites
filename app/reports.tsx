@@ -118,7 +118,7 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
   return <div className="rep">
     <header className="hdr rep-hdr">
       <button className="back" onClick={onClose} aria-label="Volver">{R.back}</button>
-      <img className="logo" src="/logo.png" alt="Pancho Esquites" />
+      <img className="logo" src="/logo.webp" alt="Pancho Esquites" />
       <div className="tag">Esquites,<br />Elotes<br /><em>y más…</em></div>
     </header>
     <main className="sheetbody rep-body">
@@ -132,7 +132,7 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
         <div className="kbig">
           <span className="k-ic">{R.bars}</span>
           <div className="k-t"><small>Ventas</small><b>{mx(t.cents)}</b><Delta short now={t.cents} before={data.prev.cents} /></div>
-          <img className="k-ph" src="/fotos/mediano.jpg" alt="" /><Spark />
+          <img className="k-ph" src="/fotos/mediano.webp" alt="" /><Spark />
         </div>
         <div className="kpis">
           <div className="kpi"><span className="kp-ic">{R.doc}</span><small>Tickets</small><b>{t.tickets}</b><Delta short now={t.tickets} before={data.prev.tickets} /></div>

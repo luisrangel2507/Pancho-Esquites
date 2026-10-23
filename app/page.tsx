@@ -114,7 +114,7 @@ export default function Caja() {
   const photoOf = (p: Product): string | null => {
     if (p.photo_path) return supabase.storage.from('products').getPublicUrl(p.photo_path).data.publicUrl;
     const f = cats.find(c => c.id === p.category_id)?.name === 'Esquites' ? FOTOS[p.short_name ?? p.name] : undefined;
-    return f ? `/fotos/${f}.jpg` : null;
+    return f ? `/fotos/${f}.webp` : null;
   };
 
   return (
@@ -123,7 +123,7 @@ export default function Caja() {
         <button className="burger" aria-label="Menú" onClick={() => setMenu(m => !m)}>
           <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
         </button>
-        <img className="logo" src="/logo.png" alt="Pancho Esquites" />
+        <img className="logo" src="/logo.webp" alt="Pancho Esquites" />
         <div className="tag">Esquites,<br />Elotes<br /><em>y más…</em></div>
         {emp.role === 'admin'
           ? <button className="pill" onClick={() => setMenu(m => !m)}>{USER_SVG}Admin ⌄</button>
@@ -156,7 +156,7 @@ export default function Caja() {
               <div className="ph">
                 {p.photo_path
                   ? <img src={supabase.storage.from('products').getPublicUrl(p.photo_path).data.publicUrl} alt="" />
-                  : local ? <img src={`/fotos/${local}.jpg`} alt="" /> : icon(cat)}
+                  : local ? <img src={`/fotos/${local}.webp`} alt="" /> : icon(cat)}
               </div>
               <div className="info">
                 <div><b>{nm}</b>{cat === 'Esquites' && DESC[nm] && <small>{DESC[nm]}</small>}</div>
@@ -258,9 +258,9 @@ const DESC: Record<string, string> = { 'Chico': 'Clásico y delicioso', 'Mediano
 
 function Shell({ children }: { children: React.ReactNode }) {
   return <div className="auth">
-    <img className="art-top" src="/auth-top.jpg" alt="Pancho Esquites" />
+    <img className="art-top" src="/auth-top.webp" alt="Pancho Esquites" />
     <div className="body">{children}</div>
-    <img className="art-bot" src="/auth-bottom.jpg" alt="" />
+    <img className="art-bot" src="/auth-bottom.webp" alt="" />
   </div>;
 }
 
@@ -299,7 +299,7 @@ function PinScreen({ onOk }: { onOk: (e: Employee, pin: string) => void }) {
     }
   }
   return <div className="pin">
-    <div className="hero"><img src="/logo.png" alt="Pancho Esquites" /></div>
+    <div className="hero"><img src="/logo.webp" alt="Pancho Esquites" /></div>
     <h1 className="ptitle">Ingresa tu <span>PIN</span></h1>
     <p className="psub">para abrir caja</p>
     <div className="circles">{Array.from({ length: PIN_LEN }, (_, i) => <i key={i} className={i < pin.length ? 'f' : ''} />)}</div>
