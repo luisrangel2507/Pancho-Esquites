@@ -1,5 +1,6 @@
 -- Apertura y cierre de caja: una sesión abierta a la vez; las ventas se ligan a la sesión abierta.
-create table cash_sessions (
+-- Se puede correr más de una vez sin error.
+create table if not exists cash_sessions (
   id bigserial primary key,
   opened_by uuid not null references employees(id),
   opened_at timestamptz not null default now(),
@@ -9,12 +10,13 @@ create table cash_sessions (
   expected_cents int,
   counted_cents int check (counted_cents >= 0)
 );
-create unique index one_open_cash_session on cash_sessions ((true)) where closed_at is null;
+create unique index if not exists one_open_cash_session on cash_sessions ((true)) where closed_at is null;
 alter table cash_sessions enable row level security;
+drop policy if exists cash_admin on cash_sessions;
 create policy cash_admin on cash_sessions for select using (is_admin());
 
-alter table sales add column session_id bigint references cash_sessions(id);
-create index on sales(session_id);
+alter table sales add column if not exists session_id bigint references cash_sessions(id);
+create index if not exists sales_session_id_idx on sales(session_id);
 
 -- Resumen de una sesión (uso interno; el efectivo esperado = fondo + ventas en efectivo no anuladas)
 create or replace function cash_summary(p_id bigint) returns jsonb
