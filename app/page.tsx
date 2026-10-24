@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, rpc, mx, Product, Category, Employee } from '@/lib/supabase';
 import Reports from './reports';
-import { OpenCash, CloseCash, type Cash } from './cash';
+import { OpenCash, CloseCash, CashBlocked, type Cash } from './cash';
 
 // Supabase exige un correo: al usuario "caja1" se le agrega este dominio interno
 const USER_DOMAIN = 'esquites.com';
@@ -195,8 +195,9 @@ export default function Caja() {
       </div>
 
       {emp && caja === null && <div className="sheet cobro cashs"><div className="panel center">Cargando caja…</div></div>}
-      {emp && caja && caja !== 'na' && !caja.open && <OpenCash pin={pin} name={emp.name} onOpened={c => setCaja(c)}
-        onLogout={logout} />}
+      {emp && caja && caja !== 'na' && !caja.open && (emp.role === 'admin' && !caja.today_closed
+        ? <OpenCash pin={pin} name={emp.name} onOpened={c => setCaja(c)} onLogout={logout} />
+        : <CashBlocked name={emp.name} todayClosed={!!caja.today_closed} onLogout={logout} />)}
       {closing && <CloseCash pin={pin} onClose={() => setClosing(false)}
         onDone={logout} />}
       {reports && <Reports pin={pin} onClose={() => setReports(false)} />}

@@ -9,7 +9,7 @@ export type CashOpen = {
   closed_at: string | null; closed_by: string | null;
 };
 export type CashClosed = Omit<CashOpen, 'open'> & { open: false };
-export type Cash = { open: false; id?: undefined } | CashOpen;
+export type Cash = { open: false; id?: undefined; today_closed?: boolean } | CashOpen;
 
 const toCents = (v: string) => Math.round(parseFloat(v || '0') * 100);
 const clock = (iso: string) => new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -42,6 +42,19 @@ export function OpenCash({ pin, name, onOpened, onLogout }: { pin: string; name:
     <p className="err">{err}</p>
     <button className="regv" disabled={busy || amt === ''} onClick={open}>Abrir caja</button>
     <button className="st-close" onClick={onLogout}>Salir</button>
+  </div></div>;
+}
+
+// Caja cerrada y este empleado no la puede abrir (no es admin, o la de hoy ya se usó)
+export function CashBlocked({ name, todayClosed, onLogout }: { name: string; todayClosed: boolean; onLogout: () => void }) {
+  return <div className="sheet cobro cashs"><div className="panel center">
+    <div className="grab" />
+    <div className="blk-ic">{todayClosed ? '🌙' : '🔒'}</div>
+    <h2 className="cs-t">{todayClosed ? 'La caja de hoy ya se cerró' : 'La caja está cerrada'}</h2>
+    <p className="muted blk-t">{todayClosed
+      ? 'La caja se abre una sola vez al día. Mañana un administrador podrá abrirla de nuevo.'
+      : `Hola, ${name}. Pide a un administrador que entre con su PIN y abra la caja.`}</p>
+    <button className="regv" onClick={onLogout}>Salir</button>
   </div></div>;
 }
 

@@ -27,7 +27,7 @@ begin
   perform tst.chk('PIN incorrecto no entra', (select count(*) from shift_start('999999')) = 0);
   select token, cash into tk, r from shift_start('111111');
   perform tst.chk('entrar con PIN da pase', tk like 'T:%', tk);
-  perform tst.chk('la entrada trae el estado de la caja', (r->>'open')::boolean = false, r::text);
+  perform tst.chk('la entrada trae el estado de la caja', (r->>'open')::boolean = false and (r->>'today_closed')::boolean = false, r::text);
   select token into tk2 from shift_start('222222');
   perform tst.chk('pase de cajero', tk2 like 'T:%');
   perform tst.err('un pase no sirve como PIN para otro pase', format($q$select shift_start(%L)$q$, tk), 'PIN incorrecto');
@@ -37,8 +37,9 @@ begin
   perform tst.chk('caja inicia cerrada', (r->>'open')::boolean = false, r::text);
   perform tst.err('no cobra sin caja abierta', format($q$select * from register_sale(%L, '[{"product_id":%s,"qty":1}]', 'cash', 5000)$q$, tk, prod_ch), 'Abre la caja');
   perform tst.err('fondo negativo rechazado', format($q$select cash_open(%L, -1)$q$, tk), 'Monto no válido');
-  r := cash_open(tk2, 50000);
-  perform tst.chk('cajero abre caja con $500', (r->>'open')::boolean and (r->>'opening_cents')::int = 50000, r::text);
+  perform tst.err('cajero no puede abrir la caja', format($q$select cash_open(%L, 0)$q$, tk2), 'Solo un administrador');
+  r := cash_open(tk, 50000);
+  perform tst.chk('admin abre caja con $500', (r->>'open')::boolean and (r->>'opening_cents')::int = 50000, r::text);
   perform tst.err('no se abren dos cajas', format($q$select cash_open(%L, 0)$q$, tk), 'Ya hay una caja abierta');
 
   select sale_id, total_cents into s1, t1 from register_sale(tk2, format('[{"product_id":%s,"qty":2}]', prod_ch)::jsonb, 'cash', 10000);
@@ -65,6 +66,12 @@ begin
   r := cash_close(tk2, 56000);
   perform tst.chk('cierre guarda contado y esperado', (r->>'open')::boolean = false and (r->>'counted_cents')::int = 56000 and (r->>'expected_cents')::int = 57000, r::text);
   perform tst.err('no se cierra dos veces', format($q$select cash_close(%L, 0)$q$, tk2), 'No hay caja abierta');
+  r := cash_status(tk2);
+  perform tst.chk('después del cierre: caja de hoy ya usada', (r->>'open')::boolean = false and (r->>'today_closed')::boolean, r::text);
+  perform tst.err('no se abre otra vez el mismo día', format($q$select cash_open(%L, 0)$q$, tk), 'ya se abrió y se cerró');
+  perform tst.err('no se cobra con la caja cerrada', format($q$select * from register_sale(%L, '[{"product_id":%s,"qty":1}]', 'card', null)$q$, tk2, prod_ch), 'Abre la caja');
+  reset role; update cash_sessions set opened_at = opened_at - interval '1 day', closed_at = closed_at - interval '1 day'; set role authenticated;
+  perform tst.chk('al día siguiente se puede abrir', (cash_status(tk2)->>'today_closed')::boolean = false);
   r := cash_history(tk, 10);
   perform tst.chk('historial de cierres', jsonb_array_length(r) = 1, r::text);
   perform tst.err('cajero no ve historial', format($q$select cash_history(%L, 10)$q$, tk2), 'Solo un admin');
