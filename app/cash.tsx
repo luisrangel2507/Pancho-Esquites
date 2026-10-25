@@ -8,6 +8,7 @@ export type CashOpen = {
   tickets: number; total_cents: number; cash_cents: number; card_cents: number; spei_cents: number;
   voided: number; voided_cents: number; expected_cents: number; counted_cents: number | null;
   closed_at: string | null; closed_by: string | null;
+  cash_received_cents?: number; change_cents?: number;
 };
 export type CashClosed = Omit<CashOpen, 'open'> & { open: false };
 export type Cash = { open: false; id?: undefined; today_closed?: boolean } | CashOpen;
@@ -108,7 +109,10 @@ export function CloseCash({ pin, onClose, onDone, pending }: { pin: string; onCl
     {s && <>
       <div className="cs-box">
         <Row l="Fondo inicial" v={mx(s.opening_cents)} />
-        <Row l="+ Ventas en efectivo" v={mx(s.cash_cents)} />
+        {s.cash_received_cents !== undefined ? <>
+          <Row l="+ Efectivo recibido" v={mx(s.cash_received_cents)} />
+          <Row l="− Cambio entregado" v={mx(s.change_cents ?? 0)} />
+        </> : <Row l="+ Ventas en efectivo" v={mx(s.cash_cents)} />}
         <Row bold l="Efectivo esperado" v={mx(s.expected_cents)} />
       </div>
       <div className="cs-box soft">

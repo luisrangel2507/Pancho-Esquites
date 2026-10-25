@@ -215,5 +215,28 @@ do $$ begin execute (select command from cron.job where jobname = 'aviso-cierre'
 select tst.chk('con la caja cerrada no manda nada', (select count(*) from net.calls) = 0);
 set role anon;
 select tst.err('anónimo no registra teléfonos', $q$select push_subscribe('111111', 'https://a', 'x', 'y')$q$, 'permission denied');
+-- Cierre con cambio entregado
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+do $$
+declare ad text; r jsonb; ch int;
+begin
+  select token into ad from shift_start('111111');
+  select id into ch from products where short_name = 'Chico';
+  reset role; delete from net.calls; update cash_sessions set closed_at = now(), closed_by = opened_by, counted_cents = 0, expected_cents = 0 where closed_at is null;
+  delete from sale_items where sale_id in (select id from sales where session_id in (select id from cash_sessions where biz_day(opened_at) = biz_day(now())));
+  update sales set session_id = null where session_id in (select id from cash_sessions where biz_day(opened_at) = biz_day(now()));
+  delete from cash_sessions where biz_day(opened_at) = biz_day(now()); set role authenticated;
+  perform cash_open(ad, 50000);
+  perform register_sale(ad, format('[{"product_id":%s,"qty":2}]', ch)::jsonb, 'cash', 10000);   -- $70, paga con $100, cambio $30
+  perform register_sale(ad, format('[{"product_id":%s,"qty":1}]', ch)::jsonb, 'cash', 3500);    -- $35 exacto
+  perform register_sale(ad, format('[{"product_id":%s,"qty":1}]', ch)::jsonb, 'card', null);    -- tarjeta no entra al cajón
+  r := cash_status(ad);
+  perform tst.chk('cierre: efectivo recibido $135', (r->>'cash_received_cents')::int = 13500, r::text);
+  perform tst.chk('cierre: cambio entregado $30', (r->>'change_cents')::int = 3000, r::text);
+  perform tst.chk('cierre: esperado = $500 + $135 − $30 = $605', (r->>'expected_cents')::int = 60500, r::text);
+  r := cash_close(ad, 60500);
+  perform tst.chk('cierre cuadra exacto con el cambio', (r->>'counted_cents')::int - (r->>'expected_cents')::int = 0, r::text);
+end $$;
 reset role;
 select n, case when ok then 'OK ' else 'FALLA' end as r, name, case when ok then '' else info end from tst.res order by n;
