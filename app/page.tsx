@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, rpc, mx, Product, Category, Employee } from '@/lib/supabase';
 import Reports from './reports';
-import { OpenCash, CloseCash, CashBlocked, type Cash } from './cash';
+import { OpenCash, CloseCash, CashBlocked, dayTime, type Cash } from './cash';
 
 // Supabase exige un correo: al usuario "caja1" se le agrega este dominio interno
 const USER_DOMAIN = 'esquites.com';
@@ -345,7 +345,7 @@ const S = {
   gear: sx(<><circle cx="12" cy="12" r="3" /><path d="M12 2.500l1.600 2.300 2.800-.5.8 2.700 2.600 1.200-.9 2.700 1.700 2.200-2.200 1.800.1 2.800-2.800.5-1.500 2.400-2.600-1.200-2.600 1.200-1.500-2.400-2.800-.5.1-2.800L2.200 13.500 3.900 11.300 3 8.600l2.600-1.200.8-2.700 2.800.5z" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="3" fill="#fff" stroke="none" /></>, 'ico big'),
 };
 
-type Person = { id: string; name: string; role: 'cajero' | 'admin'; active: boolean };
+type Person = { id: string; name: string; role: 'cajero' | 'admin'; active: boolean; is_support?: boolean; expires_at?: string | null };
 
 function Staff({ pin, meId, onClose }: { pin: string; meId: string; onClose: () => void }) {
   const [list, setList] = useState<Person[]>([]);
@@ -368,7 +368,25 @@ function Staff({ pin, meId, onClose }: { pin: string; meId: string; onClose: () 
     if (!p) { setName(''); setNp(''); }
     setEdit(null); setEp(''); load();
   }
-  const hasAdmin = list.filter(p => p.role === 'admin' && p.active).length >= MAX_ADMINS;
+  const hasAdmin = list.filter(p => p.role === 'admin' && p.active && !p.is_support).length >= MAX_ADMINS;
+  const meSupport = list.some(p => p.id === meId && p.is_support);
+  const sup = list.find(p => p.is_support && p.active);
+  const supLive = !!sup && (!sup.expires_at || new Date(sup.expires_at) > new Date());
+  const [hours, setHours] = useState(24);
+  const [newPin, setNewPin] = useState<{ pin: string; expires_at: string } | null>(null);
+  async function genSupport() {
+    if (supLive && !confirm('Esto anula el PIN de soporte actual. ¿Continuar?')) return;
+    setErr('');
+    const { data, error } = await rpc('support_pin_create', { p_admin_pin: pin, p_hours: hours });
+    if (error) return setErr(error.message);
+    setNewPin(data); load();
+  }
+  async function revoke() {
+    if (!confirm('¿Revocar el PIN de soporte? El acceso se corta al momento.')) return;
+    setErr('');
+    const { error } = await rpc('support_pin_revoke', { p_admin_pin: pin });
+    if (error) setErr(error.message); else { setNewPin(null); load(); }
+  }
   async function makeAdmin(p: Person) {
     if (!confirm(`¿Dar permisos de administrador a ${p.name}?`)) return;
     setErr('');
@@ -397,7 +415,7 @@ function Staff({ pin, meId, onClose }: { pin: string; meId: string; onClose: () 
       <button className="st-x" aria-label="Cerrar" onClick={onClose}>×</button>
     </div>
     <div className="st-list">
-      {list.map(p => <div key={p.id}>
+      {list.filter(p => !p.is_support).map(p => <div key={p.id}>
         <div className={'st-row' + (p.active ? '' : ' off')}>
           <span className={'av ' + (p.role === 'admin' ? 'gold' : 'green')}>{S.user}</span>
           <div className="st-n">
@@ -422,6 +440,21 @@ function Staff({ pin, meId, onClose }: { pin: string; meId: string; onClose: () 
       </div>)}
     </div>
 
+    {meSupport ? <p className="muted sup-me">Entraste con el PIN de soporte: puedes consultar, pero no administrar empleados.</p> : <>
+    <div className="sup">
+      <div className="sup-h"><span className="sup-ic">{S.lock}</span>
+        <div><h3>PIN de soporte</h3><small>Acceso temporal para el desarrollador. Vence solo y puedes revocarlo cuando quieras.</small></div></div>
+      {newPin && <div className="sup-new"><small>PIN de soporte · se muestra una sola vez</small><b>{newPin.pin}</b>
+        <small>Vence {dayTime(newPin.expires_at)} · Compártelo solo por mensaje privado.</small></div>}
+      {supLive && sup
+        ? <div className="sup-row"><span>Activo hasta <b>{dayTime(sup.expires_at!)}</b></span>
+            <button className="b-off" onClick={revoke}>{S.power}Revocar</button></div>
+        : !newPin && <p className="muted">No hay PIN de soporte activo.</p>}
+      <div className="quick">{([[24, '24 horas'], [72, '3 días'], [168, '7 días']] as const).map(([h, l]) =>
+        <button key={h} className={hours === h ? 'on' : ''} onClick={() => setHours(h)}>{l}</button>)}</div>
+      <button className="regv sm" onClick={genSupport}>{supLive ? 'Generar uno nuevo' : 'Generar PIN de soporte'}</button>
+    </div>
+
     <div className="st-new">
       <span className="st-ic2">{S.userPlus}</span>
       <div><h3>Nuevo empleado</h3><small>Agrega un nuevo empleado y asigna su rol en el sistema.</small></div>
@@ -444,6 +477,8 @@ function Staff({ pin, meId, onClose }: { pin: string; meId: string; onClose: () 
     {hasAdmin && <p className="muted">Ya hay {MAX_ADMINS} administradores activos. Para dar de alta otro, quita o desactiva uno.</p>}
     <p className="err">{err}</p>
     <button className="regv" disabled={!name.trim() || np.length !== PIN_LEN} onClick={() => save(null, { pin: np })}>{S.userPlusW}Agregar empleado</button>
+    </>}
+    {meSupport && <p className="err">{err}</p>}
     <button className="st-close" onClick={onClose}>Cerrar</button>
   </div></div>;
 }

@@ -307,3 +307,18 @@ button.pill{font-family:inherit;cursor:pointer}
 .cs-hist .cs-row{padding:2px 0;border:none;font-size:14px}
 .blk-ic{font-size:54px;margin:4px 0}
 .blk-t{font-size:16px;line-height:1.4;margin:6px 8px 18px}
+
+/* ───── PIN de soporte ───── */
+.sup{margin:16px 0 4px;padding:14px;border-radius:18px;background:#EAF3E6;border:1.5px solid #BFDDB6}
+.sup-h{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px}
+.sup-ic{width:42px;height:42px;border-radius:12px;background:#0B4A2A;color:#F7CC3E;display:grid;place-items:center;flex:0 0 42px}
+.sup-ic .ico{width:22px;height:22px}
+.sup h3{margin:0;font-size:19px;color:#0B4A2A}.sup-h small{display:block;color:var(--muted);font-size:13px;line-height:1.3}
+.sup-new{background:#fff;border:2px dashed #F4BE2C;border-radius:14px;padding:12px;text-align:center;margin:8px 0}
+.sup-new b{display:block;font-family:var(--f-osw),sans-serif;font-size:42px;letter-spacing:8px;color:#0B4A2A}
+.sup-new small{display:block;color:var(--muted);font-size:13px}
+.sup-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0 10px;font-size:15px}
+.sup-row button{display:flex;align-items:center;gap:6px;border:none;border-radius:999px;padding:8px 12px;font-weight:700;font-size:13px}
+.sup-row .ico{width:16px;height:16px}
+.quick button.on{background:#0B4A2A;color:#fff}
+.sup-me{margin:14px 0}

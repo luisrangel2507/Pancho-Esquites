@@ -124,5 +124,39 @@ select tst.chk('la caja no puede leer los pases', (select count(*) from shifts) 
 reset role;
 set role anon;
 select tst.err('anónimo no puede entrar', $q$select shift_start('111111')$q$, 'permission denied');
+-- PIN de soporte
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+do $$
+declare ad text; sp text; sp2 text; r jsonb; pin1 text; pin2 text; n int;
+begin
+  select token into ad from shift_start('111111');
+  perform tst.err('duración inválida rechazada', format($q$select support_pin_create(%L, 5)$q$, ad), 'Duración');
+  r := support_pin_create(ad, 24);
+  pin1 := r->>'pin';
+  perform tst.chk('genera PIN de 6 dígitos', pin1 ~ '^\d{6}$', r::text);
+  perform tst.chk('vence en 24 horas', (r->>'expires_at')::timestamptz between now() + interval '23 hours 59 minutes' and now() + interval '24 hours 1 minute');
+  select token into sp from shift_start(pin1);
+  perform tst.chk('soporte entra con su PIN', sp like 'T:%');
+  perform tst.chk('soporte entra como admin', (select role from shift_start(pin1)) = 'admin');
+  perform tst.chk('soporte ve el informe de ventas', sales_report(sp, now() - interval '1 day', now() + interval '1 day') ? 'totals');
+  perform tst.err('soporte no puede crear empleados', format($q$select staff_upsert(%L, null, 'X', '444444', 'admin', true)$q$, sp), 'soporte no puede');
+  perform tst.err('soporte no genera otro PIN de soporte', format($q$select support_pin_create(%L, 24)$q$, sp), 'soporte no puede');
+  perform tst.chk('soporte no ocupa lugar de admin', (select count(*) from staff_list(ad) where role = 'admin' and active and not is_support) = 2
+    and (select count(*) from staff_list(ad) where is_support and active) = 1);
+  perform tst.err('soporte no se edita como empleado', format($q$select staff_upsert(%L, %L, 'Soporte', null, 'admin', false)$q$, ad,
+    (select id from staff_list(ad) where is_support and active)), 'aparte');
+  r := support_pin_create(ad, 72);
+  pin2 := r->>'pin';
+  perform tst.chk('PIN nuevo anula al anterior', (select count(*) from shift_start(pin1)) = 0 and (select count(*) from staff_list(ad) where is_support and active) = 1);
+  select token into sp2 from shift_start(pin2);
+  perform support_pin_revoke(ad);
+  perform tst.err('revocar corta el pase al momento', format($q$select cash_status(%L)$q$, sp2), 'Turno vencido');
+  perform tst.chk('PIN revocado ya no entra', (select count(*) from shift_start(pin2)) = 0);
+  r := support_pin_create(ad, 168);
+  reset role; update employees set expires_at = now() - interval '1 minute' where is_support and active; set role authenticated;
+  perform tst.chk('PIN vencido ya no entra', (select count(*) from shift_start(r->>'pin')) = 0);
+  perform tst.chk('el admin del negocio sigue entrando', (select count(*) from shift_start('111111')) = 1);
+end $$;
 reset role;
 select n, case when ok then 'OK ' else 'FALLA' end as r, name, case when ok then '' else info end from tst.res order by n;
