@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, rpc, mx, Product, Category, Employee } from '@/lib/supabase';
 import Reports from './reports';
+import { askPush, enablePush } from '@/lib/push';
 import { OpenCash, CloseCash, CashBlocked, dayTime, type Cash } from './cash';
 
 // Supabase exige un correo: al usuario "caja1" se le agrega este dominio interno
@@ -95,6 +96,7 @@ export default function Caja() {
 
   useEffect(() => {
     if (!emp) { setCaja(null); setClosing(false); return; }
+    if (pin.startsWith('T:')) enablePush(pin);
     if (loginCash.current) { setCaja(loginCash.current); loginCash.current = null; return; }
     rpc('cash_status', { p_pin: pin }).then(({ data, error }) => {
       // si la base aún no tiene las funciones de caja, la app sigue funcionando sin ellas
@@ -176,6 +178,8 @@ export default function Caja() {
           {emp.role === 'admin' && <button onClick={() => { setReports(true); setMenu(false); }}>Ventas e informes</button>}
           {emp.role === 'admin' && <button onClick={() => { setStaff(true); setMenu(false); }}>Empleados</button>}
           {emp.role === 'admin' && <a href="/admin">Administración</a>}
+          {typeof Notification !== 'undefined' && Notification.permission === 'default' &&
+            <button onClick={() => { setMenu(false); askPush(pin); }}>Activar avisos de cierre</button>}
           <button className="mx" onClick={() => setMenu(false)}>Cerrar menú</button>
         </div>}
       </header>

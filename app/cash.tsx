@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { rpc, mx } from '@/lib/supabase';
+import { askPush } from '@/lib/push';
 
 export type CashOpen = {
   id: number; open: true; stale?: boolean; opened_at: string; opened_by: string; opening_cents: number;
@@ -23,7 +24,7 @@ export function Diff({ cents }: { cents: number }) {
 export function OpenCash({ pin, name, onOpened, onLogout }: { pin: string; name: string; onOpened: (c: CashOpen) => void; onLogout: () => void }) {
   const [amt, setAmt] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   async function open() {
-    try { if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission(); } catch { }
+    askPush(pin);
     setErr(''); setBusy(true);
     const { data, error } = await rpc('cash_open', { p_pin: pin, p_opening_cents: toCents(amt) });
     setBusy(false);

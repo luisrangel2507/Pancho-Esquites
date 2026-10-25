@@ -9,3 +9,14 @@ grant execute on function auth.uid() to anon, authenticated;
 grant usage on schema public to anon, authenticated;
 alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated;
 alter default privileges in schema public grant usage, select on sequences to anon, authenticated;
+
+-- Imitación de pg_cron y pg_net (no vienen en un Postgres local). run.sh quita los "create extension" de esas dos.
+create schema if not exists cron;
+create table if not exists cron.job (jobid bigserial primary key, jobname text unique, schedule text, command text);
+create or replace function cron.schedule(n text, s text, c text) returns bigint language sql as
+  $$ insert into cron.job(jobname, schedule, command) values (n, s, c) on conflict (jobname) do update set schedule = s, command = c returning jobid $$;
+create or replace function cron.unschedule(id bigint) returns boolean language sql as $$ delete from cron.job where jobid = id returning true $$;
+create schema if not exists net;
+create table if not exists net.calls (id bigserial, url text, headers jsonb, body jsonb);
+create or replace function net.http_post(url text, headers jsonb default '{}', body jsonb default '{}') returns bigint language sql as
+  $$ insert into net.calls(url, headers, body) values (url, headers, body) returning id $$;

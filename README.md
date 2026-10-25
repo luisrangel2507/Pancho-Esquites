@@ -44,3 +44,12 @@ Reglas:
 2. Cambiar contraseña de `backup_ro` y el secret en GitHub.
 3. Cambiar contraseñas de `caja@` y admins; reactivar cajas.
 4. Revisar `sales` e `inventory_moves` de las últimas horas.
+
+## Aviso de cierre de caja (notificaciones push)
+1. Correr `supabase/pegar_todo.sql` (crea la tabla de teléfonos, el secreto y el aviso diario a las 03:00 UTC = 9 pm CDMX).
+2. Supabase → Edge Functions → nueva función **`aviso-cierre`** con el código de `supabase/functions/aviso-cierre/index.ts` → Deploy.
+   En su configuración, **apagar "Enforce JWT verification"** (el cron no manda sesión; la función se protege con el secreto de `push_config`).
+3. En cada teléfono: menú → "Activar avisos de cierre" (o al abrir la caja) y permitir. En iPhone solo funciona con la app agregada a la pantalla de inicio (iOS 16.4+).
+4. Probar ya (con la caja abierta): en SQL Editor
+   `select net.http_post(url := fn_url, headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',cron_secret), body := '{}'::jsonb) from push_config;`
+   `fn_url` se llena solo la primera vez que un teléfono activa los avisos.

@@ -186,5 +186,34 @@ begin
   perform tst.chk('caja de hoy no está pendiente', (cash_status(ad)->>'stale')::boolean = false);
   perform tst.chk('con la caja de hoy sí se cobra', (select count(*) from register_sale(ad, format('[{"product_id":%s,"qty":1}]', ch)::jsonb, 'card', null)) = 1);
 end $$;
+-- Notificaciones push
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+do $$
+declare ad text;
+begin
+  select token into ad from shift_start('111111');
+  perform tst.err('push sin pase rechazado', $q$select push_subscribe('T:nada', 'https://fcm.googleapis.com/x', repeat('a', 87), repeat('b', 22))$q$, 'Turno vencido');
+  perform tst.err('push con dirección no https rechazado', format($q$select push_subscribe(%L, 'http://malo', %L, %L)$q$, ad, repeat('a', 87), repeat('b', 22)), 'no válida');
+  perform push_subscribe(ad, 'https://fcm.googleapis.com/fcm/send/abc', repeat('a', 87), repeat('b', 22));
+  perform push_subscribe(ad, 'https://fcm.googleapis.com/fcm/send/abc', repeat('c', 87), repeat('d', 22));
+  perform tst.err('la caja no puede leer suscripciones', $q$select count(*) from push_subscriptions$q$, 'permission denied');
+  perform tst.err('la caja no puede leer las llaves', $q$select vapid_private from push_config$q$, 'permission denied');
+end $$;
+reset role;
+select tst.chk('registrar el mismo teléfono dos veces no duplica', (select count(*) from push_subscriptions) = 1 and (select p256dh from push_subscriptions) = repeat('c', 87));
+select tst.chk('aviso programado a las 03:00 UTC (9 pm CDMX)', (select schedule from cron.job where jobname = 'aviso-cierre') = '0 3 * * *');
+select tst.chk('secreto del cron generado', (select length(cron_secret) from push_config) = 48);
+update push_config set fn_url = 'https://x.supabase.co/functions/v1/aviso-cierre';
+delete from net.calls;
+do $$ begin execute (select command from cron.job where jobname = 'aviso-cierre'); end $$;
+select tst.chk('con la caja abierta, a las 9 pm llama a la función con el secreto',
+  (select count(*) from net.calls) = 1 and (select headers->>'x-cron-secret' from net.calls) = (select cron_secret from push_config));
+update cash_sessions set closed_at = now(), closed_by = opened_by, counted_cents = 0, expected_cents = 0 where closed_at is null;
+delete from net.calls;
+do $$ begin execute (select command from cron.job where jobname = 'aviso-cierre'); end $$;
+select tst.chk('con la caja cerrada no manda nada', (select count(*) from net.calls) = 0);
+set role anon;
+select tst.err('anónimo no registra teléfonos', $q$select push_subscribe('111111', 'https://a', 'x', 'y')$q$, 'permission denied');
 reset role;
 select n, case when ok then 'OK ' else 'FALLA' end as r, name, case when ok then '' else info end from tst.res order by n;
