@@ -1,5 +1,6 @@
 -- Empleados administrados desde la caja: el admin se identifica con su PIN (sin sesión de Auth extra)
-create or replace function staff_list(p_admin_pin text)
+drop function if exists staff_list(text);
+create function staff_list(p_admin_pin text)
 returns table(id uuid, name text, role text, active boolean)
 language plpgsql security definer set search_path = public, extensions as $$
 declare e employees;
