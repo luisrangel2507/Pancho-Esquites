@@ -158,5 +158,33 @@ begin
   perform tst.chk('PIN vencido ya no entra', (select count(*) from shift_start(r->>'pin')) = 0);
   perform tst.chk('el admin del negocio sigue entrando', (select count(*) from shift_start('111111')) = 1);
 end $$;
+-- Cierre olvidado (caja de un día anterior)
+reset role;
+select tst.chk('día de operación: 11 pm y 1 am son el mismo día',
+  biz_day('2026-10-24 23:00-06') = biz_day('2026-10-25 01:00-06') and biz_day('2026-10-25 06:00-06') > biz_day('2026-10-25 01:00-06'));
+select tst.err('la app no llama biz_day', $q$set local role authenticated; select biz_day(now())$q$, 'permission denied');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+do $$
+declare ad text; r jsonb; ch int;
+begin
+  select token into ad from shift_start('111111');
+  select id into ch from products where short_name = 'Chico';
+  reset role; delete from cash_sessions where closed_at is null; set role authenticated;
+  reset role;
+  insert into cash_sessions(opened_by, opening_cents, opened_at) select id, 30000, now() - interval '30 hours' from employees where name = 'Dueño';
+  set role authenticated;
+  r := cash_status(ad);
+  perform tst.chk('caja de ayer abierta queda pendiente', (r->>'open')::boolean and (r->>'stale')::boolean, r::text);
+  perform tst.chk('la entrada avisa del cierre pendiente', ((select cash from shift_start('111111'))->>'stale')::boolean);
+  perform tst.err('no se cobra con el cierre pendiente', format($q$select * from register_sale(%L, '[{"product_id":%s,"qty":1}]', 'card', null)$q$, ad, ch), 'Cierra la caja de ayer');
+  r := cash_close(ad, 30000);
+  perform tst.chk('se cierra la caja pendiente con el conteo', (r->>'open')::boolean = false and (r->>'counted_cents')::int = 30000, r::text);
+  r := cash_status(ad);
+  perform tst.chk('después del cierre pendiente se puede abrir la de hoy', (r->>'open')::boolean = false and (r->>'today_closed')::boolean = false, r::text);
+  r := cash_open(ad, 0);
+  perform tst.chk('caja de hoy no está pendiente', (cash_status(ad)->>'stale')::boolean = false);
+  perform tst.chk('con la caja de hoy sí se cobra', (select count(*) from register_sale(ad, format('[{"product_id":%s,"qty":1}]', ch)::jsonb, 'card', null)) = 1);
+end $$;
 reset role;
 select n, case when ok then 'OK ' else 'FALLA' end as r, name, case when ok then '' else info end from tst.res order by n;

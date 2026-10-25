@@ -322,3 +322,9 @@ button.pill{font-family:inherit;cursor:pointer}
 .sup-row .ico{width:16px;height:16px}
 .quick button.on{background:#0B4A2A;color:#fff}
 .sup-me{margin:14px 0}
+
+/* ───── Recordatorio y cierre pendiente ───── */
+.remind{display:flex;align-items:center;gap:10px;width:100%;margin:0 0 10px;padding:12px 14px;border:none;border-radius:14px;background:#C62828;color:#fff;text-align:left;box-shadow:0 3px 10px rgba(198,40,40,.35);animation:pulse 2s ease-in-out infinite}
+.remind span{font-size:24px}.remind b{flex:1;font-size:15px;line-height:1.2}.remind em{font-style:normal;font-weight:800;font-size:14px;white-space:nowrap}
+@keyframes pulse{50%{box-shadow:0 3px 18px rgba(198,40,40,.6)}}
+.pend{background:#FBE1DE;color:#8E1C1C;border-radius:12px;padding:10px 12px;margin:0 0 10px;font-size:14px;line-height:1.35}

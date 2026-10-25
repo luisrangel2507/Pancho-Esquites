@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { rpc, mx } from '@/lib/supabase';
 
 export type CashOpen = {
-  id: number; open: true; opened_at: string; opened_by: string; opening_cents: number;
+  id: number; open: true; stale?: boolean; opened_at: string; opened_by: string; opening_cents: number;
   tickets: number; total_cents: number; cash_cents: number; card_cents: number; spei_cents: number;
   voided: number; voided_cents: number; expected_cents: number; counted_cents: number | null;
   closed_at: string | null; closed_by: string | null;
@@ -23,6 +23,7 @@ export function Diff({ cents }: { cents: number }) {
 export function OpenCash({ pin, name, onOpened, onLogout }: { pin: string; name: string; onOpened: (c: CashOpen) => void; onLogout: () => void }) {
   const [amt, setAmt] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   async function open() {
+    try { if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission(); } catch { }
     setErr(''); setBusy(true);
     const { data, error } = await rpc('cash_open', { p_pin: pin, p_opening_cents: toCents(amt) });
     setBusy(false);
@@ -62,7 +63,8 @@ function Row({ l, v, bold }: { l: string; v: React.ReactNode; bold?: boolean }) 
   return <div className={'cs-row' + (bold ? ' bold' : '')}><span>{l}</span><span>{v}</span></div>;
 }
 
-export function CloseCash({ pin, onClose, onDone }: { pin: string; onClose: () => void; onDone: () => void }) {
+// pending: la caja quedó abierta de un día anterior; no se puede salir de aquí sin cerrarla
+export function CloseCash({ pin, onClose, onDone, pending }: { pin: string; onClose: () => void; onDone: () => void; pending?: boolean }) {
   const [s, setS] = useState<CashOpen | null>(null);
   const [counted, setCounted] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<(Omit<CashOpen, 'open'> & { open: boolean }) | null>(null);
@@ -72,7 +74,7 @@ export function CloseCash({ pin, onClose, onDone }: { pin: string; onClose: () =
     });
   }, []);
   async function close() {
-    if (!confirm('¿Cerrar la caja? Ya no podrás cobrar hasta abrir otra.')) return;
+    if (!pending && !confirm('¿Cerrar la caja? Ya no podrás cobrar hasta abrir otra.')) return;
     setErr(''); setBusy(true);
     const { data, error } = await rpc('cash_close', { p_pin: pin, p_counted_cents: toCents(counted) });
     setBusy(false);
@@ -94,13 +96,14 @@ export function CloseCash({ pin, onClose, onDone }: { pin: string; onClose: () =
     <button className="regv" onClick={onDone}>Listo</button>
   </div></div>;
 
-  return <div className="sheet cobro cashs" onClick={e => e.target === e.currentTarget && onClose()}><div className="panel">
+  return <div className="sheet cobro cashs" onClick={e => !pending && e.target === e.currentTarget && onClose()}><div className="panel">
     <div className="grab" />
     <div className="ch">
-      <span className="ch-ic">{'🔒'}</span>
-      <div className="ch-t"><h2>Cerrar caja</h2><small>{s ? `Abierta ${dayTime(s.opened_at)} por ${s.opened_by}` : 'Cargando…'}</small></div>
-      <button className="st-x" aria-label="Cerrar" onClick={onClose}>×</button>
+      <span className="ch-ic">{pending ? '⚠️' : '🔒'}</span>
+      <div className="ch-t"><h2>{pending ? 'Cierre pendiente' : 'Cerrar caja'}</h2><small>{s ? `Abierta ${dayTime(s.opened_at)} por ${s.opened_by}` : 'Cargando…'}</small></div>
+      {!pending && <button className="st-x" aria-label="Cerrar" onClick={onClose}>×</button>}
     </div>
+    {pending && <p className="pend">La caja de un día anterior no se cerró. Cuenta el efectivo y ciérrala para poder seguir.</p>}
     {s && <>
       <div className="cs-box">
         <Row l="Fondo inicial" v={mx(s.opening_cents)} />

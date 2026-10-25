@@ -10,6 +10,20 @@ const AUTO_USER = process.env.NEXT_PUBLIC_CAJA_USER;
 const AUTO_PASS = process.env.NEXT_PUBLIC_CAJA_PASS;
 const toEmail = (u: string) => u.includes('@') ? u.trim() : `${u.trim().toLowerCase()}@${USER_DOMAIN}`;
 const MAX_ADMINS = 2;
+const CLOSE_REMINDER_HOUR = 21; // 9 pm, hora de Ciudad de México
+
+// Aviso del teléfono una vez por noche (solo si el usuario dio permiso y la app sigue abierta o en segundo plano)
+async function notifyClose() {
+  try {
+    const key = 'aviso-cierre-' + new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10);
+    if (localStorage.getItem(key) || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker?.getRegistration();
+    const opts = { body: 'Ya son las 9 pm: hay que cerrar la caja.', icon: '/icon-192.png', tag: 'cierre' };
+    if (reg) await reg.showNotification('Pancho Esquites', opts); else new Notification('Pancho Esquites', opts);
+    localStorage.setItem(key, '1');
+  } catch { /* sin permiso o sin soporte: queda la barra en pantalla */ }
+}
+
 const PIN_LEN = 6; // el PIN es de exactamente 6 dígitos y se verifica una sola vez, al completarlo
 const IDLE_MS = 3 * 60 * 60 * 1000; // cierra el turno tras 3 horas sin uso (igual que el pase en la base)
 
@@ -33,6 +47,21 @@ export default function Caja() {
   const [caja, setCaja] = useState<Cash | 'na' | null>(null);
   const [closing, setClosing] = useState(false);
   const loginCash = useRef<Cash | null>(null);
+  const [lateHour, setLateHour] = useState(false);
+
+  // Recordatorio de cierre: de 9 pm a 5 am (hora de Ciudad de México) con la caja abierta
+  useEffect(() => {
+    const open = !!caja && caja !== 'na' && caja.open && !caja.stale;
+    const tick = () => {
+      const h = +new Intl.DateTimeFormat('en-US', { timeZone: 'America/Mexico_City', hour: 'numeric', hourCycle: 'h23' }).format(new Date());
+      const late = h >= CLOSE_REMINDER_HOUR || h < 5;
+      setLateHour(late);
+      if (open && late) notifyClose();
+    };
+    tick();
+    const t = setInterval(tick, 60 * 1000);
+    return () => clearInterval(t);
+  }, [caja]);
 
   function logout() {
     if (pin.startsWith('T:')) rpc('shift_end', { p_token: pin });
@@ -151,6 +180,8 @@ export default function Caja() {
         </div>}
       </header>
       <main className="sheetbody">
+        {caja && caja !== 'na' && caja.open && !caja.stale && lateHour && <button className="remind" onClick={() => setClosing(true)}>
+          <span>🌙</span><b>Ya son las 9 pm: no olvides cerrar la caja</b><em>Cerrar caja ›</em></button>}
         <div className="chips">
           {cats.map(c => {
             const n = prods.filter(p => p.category_id === c.id).reduce((a, p) => a + (cart[p.id]?.qty ?? 0), 0);
@@ -198,6 +229,8 @@ export default function Caja() {
       {emp && caja && caja !== 'na' && !caja.open && (emp.role === 'admin' && !caja.today_closed
         ? <OpenCash pin={pin} name={emp.name} onOpened={c => setCaja(c)} onLogout={logout} />
         : <CashBlocked name={emp.name} todayClosed={!!caja.today_closed} onLogout={logout} />)}
+      {emp && caja && caja !== 'na' && caja.open && caja.stale && <CloseCash pending pin={pin} onClose={() => {}}
+        onDone={() => rpc('cash_status', { p_pin: pin }).then(({ data, error }) => setCaja(error ? { open: false } : data as Cash))} />}
       {closing && <CloseCash pin={pin} onClose={() => setClosing(false)}
         onDone={logout} />}
       {reports && <Reports pin={pin} onClose={() => setReports(false)} />}
