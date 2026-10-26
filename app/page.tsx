@@ -4,12 +4,8 @@ import { supabase, rpc, mx, Product, Category, Employee } from '@/lib/supabase';
 import Reports from './reports';
 import { askPush, enablePush } from '@/lib/push';
 import { OpenCash, CloseCash, CashBlocked, dayTime, type Cash } from './cash';
+import { ActivateDevice, Connecting, DevicesSheet } from './devices';
 
-// Supabase exige un correo: al usuario "caja1" se le agrega este dominio interno
-const USER_DOMAIN = 'esquites.com';
-const AUTO_USER = process.env.NEXT_PUBLIC_CAJA_USER;
-const AUTO_PASS = process.env.NEXT_PUBLIC_CAJA_PASS;
-const toEmail = (u: string) => u.includes('@') ? u.trim() : `${u.trim().toLowerCase()}@${USER_DOMAIN}`;
 const MAX_ADMINS = 2;
 const CLOSE_REMINDER_HOUR = 21; // 9 pm, hora de Ciudad de México
 
@@ -31,8 +27,12 @@ const IDLE_MS = 3 * 60 * 60 * 1000; // cierra el turno tras 3 horas sin uso (igu
 type Cart = Record<number, { qty: number; note: string }>;
 
 export default function Caja() {
-  const [session, setSession] = useState<boolean | null>(null);
-  const [autoErr, setAutoErr] = useState('');
+  // Teléfono: 'loading' → 'ready' (activado) | 'activate' (pide código) | 'error' (reintenta solo)
+  const [dev, setDev] = useState<'loading' | 'ready' | 'activate' | 'error'>('loading');
+  const [devErr, setDevErr] = useState('');
+  const devRef = useRef(dev); devRef.current = dev;
+  const session = dev === 'ready';
+  const [phones, setPhones] = useState(false);
   const [emp, setEmp] = useState<Employee | null>(null);
   const [pin, setPin] = useState(''); // pase de turno (o PIN si la base es vieja); solo en memoria mientras dura el turno
   const [cats, setCats] = useState<Category[]>([]);
@@ -76,30 +76,36 @@ export default function Caja() {
   }, []);
   const [ticket, setTicket] = useState<{ id: number; total: number } | null>(null);
 
-  // Con NEXT_PUBLIC_CAJA_USER/PASS definidas la caja se activa sola y solo se pide el PIN
+  // Cada teléfono tiene su propia sesión (anónima de Supabase) y se activa una vez con un código del dueño.
+  // No hay contraseña dentro de la app.
   useEffect(() => {
     let alive = true;
-    const auto = async () => {
-      if (!AUTO_USER || !AUTO_PASS) return false;
-      const { error } = await supabase.auth.signInWithPassword({ email: toEmail(AUTO_USER), password: AUTO_PASS });
-      if (error) setAutoErr(/invalid/i.test(error.message) ? 'La cuenta de la caja no coincide (usuario o contraseña de Cloudflare).' : 'Sin conexión. Reintentando…');
-      else setAutoErr('');
-      return !error;
-    };
-    (async () => {
+    const check = async () => {
       const { data } = await supabase.auth.getSession();
+      const had = !!data.session;
+      if (!had) {
+        const r = await supabase.auth.signInAnonymously();
+        if (r.error) {
+          if (!alive) return;
+          setDevErr(/anonymous|not allowed|disabled/i.test(r.error.message) ? 'Falta activar los inicios anónimos en Supabase.' : 'Sin conexión. Reintentando…');
+          setDev('error'); return;
+        }
+      }
+      const { data: ok, error } = await supabase.rpc('device_status');
       if (!alive) return;
-      setSession(data.session ? true : await auto());
-    })();
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
-      if (s) setSession(true); else setSession(await auto());
-    });
-    const retry = setInterval(async () => {
-      if (!alive || !AUTO_USER) return;
-      const { data } = await supabase.auth.getSession();
-      if (!data.session && alive) setSession(await auto());
-    }, 10000);
-    return () => { alive = false; clearInterval(retry); sub.subscription.unsubscribe(); };
+      if (error) {
+        // base sin la activación nueva: un teléfono que ya tenía sesión sigue funcionando como antes
+        if (/find the function/i.test(error.message)) { if (had) { setDev('ready'); return; } setDevErr('Falta correr el SQL de activación en Supabase.'); }
+        else setDevErr('Sin conexión. Reintentando…');
+        setDev('error'); return;
+      }
+      setDevErr(''); setDev(ok ? 'ready' : 'activate');
+    };
+    check();
+    const retry = setInterval(() => { if (devRef.current === 'error') check(); }, 10000);
+    const removed = () => { setEmp(null); setPin(''); check(); };
+    window.addEventListener('dispositivo-quitado', removed);
+    return () => { alive = false; clearInterval(retry); window.removeEventListener('dispositivo-quitado', removed); };
   }, []);
 
   useEffect(() => {
@@ -140,9 +146,8 @@ export default function Caja() {
     s + (prods.find(p => p.id === +id)?.price_cents ?? 0) * v.qty, 0), [cart, prods]);
   const count = Object.values(cart).reduce((s, v) => s + v.qty, 0);
 
-  if (session === null) return null;
-  // Con la cuenta de la caja configurada nunca se pide usuario y contraseña: solo el PIN
-  if (!session) return AUTO_USER && AUTO_PASS ? <Connecting err={autoErr} /> : <DeviceLogin />;
+  if (dev === 'loading' || dev === 'error') return <Connecting err={devErr} />;
+  if (dev === 'activate') return <ActivateDevice onDone={() => setDev('ready')} />;
 
   if (!emp) return <PinScreen onOk={(e, p, c) => { loginCash.current = c ?? null; setEmp(e); setPin(p); }} />;
 
@@ -186,6 +191,7 @@ export default function Caja() {
           {caja && caja !== 'na' && caja.open && <button onClick={() => { setClosing(true); setMenu(false); }}>Cerrar caja</button>}
           {emp.role === 'admin' && <button onClick={() => { setReports(true); setMenu(false); }}>Ventas e informes</button>}
           {emp.role === 'admin' && <button onClick={() => { setStaff(true); setMenu(false); }}>Empleados</button>}
+          {emp.role === 'admin' && <button onClick={() => { setPhones(true); setMenu(false); }}>Teléfonos</button>}
           {emp.role === 'admin' && <a href="/admin">Administración</a>}
           {typeof Notification !== 'undefined' && Notification.permission === 'default' &&
             <button onClick={() => { setMenu(false); askPush(pin); }}>Activar avisos de cierre</button>}
@@ -246,6 +252,7 @@ export default function Caja() {
         onDone={() => rpc('cash_status', { p_pin: pin }).then(({ data, error }) => setCaja(error ? { open: false } : data as Cash))} />}
       {closing && <CloseCash pin={pin} onClose={() => setClosing(false)}
         onDone={logout} />}
+      {phones && <DevicesSheet pin={pin} onClose={() => setPhones(false)} />}
       {reports && <Reports pin={pin} onClose={() => setReports(false)} />}
       {staff && <Staff pin={pin} meId={emp.employee_id} onClose={() => setStaff(false)} />}
 
@@ -325,31 +332,6 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 const UserIcon = () => <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>;
 const Lock = () => <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
-
-function Connecting({ err }: { err: string }) {
-  return <div className="pin">
-    <div className="hero"><img src="/logo.webp" alt="Pancho Esquites" /></div>
-    <h1 className="ptitle">Conectando <span>caja</span>…</h1>
-    <p className="psub">{err || 'Un momento'}</p>
-    <div className="spin" />
-  </div>;
-}
-
-function DeviceLogin() {
-  const [user, setUser] = useState(''); const [pass, setPass] = useState(''); const [err, setErr] = useState('');
-  async function go() {
-    const { error } = await supabase.auth.signInWithPassword({ email: toEmail(user), password: pass });
-    if (error) setErr('Usuario o contraseña incorrectos');
-  }
-  return <Shell>
-    <h2>Activar caja</h2><p>Solo se hace una vez por dispositivo.<br />Lo hace el dueño.</p>
-    <div className="field"><UserIcon /><input id="user" type="text" placeholder="Usuario" autoCapitalize="none" autoCorrect="off" autoComplete="username" value={user} onChange={e => setUser(e.target.value)} /></div>
-    <div className="field"><Lock /><input id="pass" type="password" placeholder="Contraseña" value={pass} onChange={e => setPass(e.target.value)}
-      onKeyDown={e => e.key === 'Enter' && go()} /></div>
-    <p className="err">{err}</p>
-    <button className="primary" onClick={go}>Activar caja</button>
-  </Shell>;
-}
 
 function PinScreen({ onOk }: { onOk: (e: Employee, pin: string, cash?: Cash) => void }) {
   const [pin, setPin] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);

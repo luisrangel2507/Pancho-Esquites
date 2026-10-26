@@ -17,5 +17,6 @@ export type Employee = { employee_id: string; name: string; role: 'cajero' | 'ad
 export async function rpc(fn: string, args?: Record<string, unknown>) {
   const res = await supabase.rpc(fn, args);
   if (res.error && /Turno vencido/.test(res.error.message)) window.dispatchEvent(new Event('turno-vencido'));
+  if (res.error && /Dispositivo no autorizado/.test(res.error.message)) window.dispatchEvent(new Event('dispositivo-quitado'));
   return res;
 }

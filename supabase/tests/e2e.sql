@@ -238,5 +238,43 @@ begin
   r := cash_close(ad, 60500);
   perform tst.chk('cierre cuadra exacto con el cambio', (r->>'counted_cents')::int - (r->>'expected_cents')::int = 0, r::text);
 end $$;
+-- Activación de teléfonos con código
+reset role;
+insert into auth.users(id) values ('00000000-0000-0000-0000-0000000000c3'), ('00000000-0000-0000-0000-0000000000c4'); -- usuarios anónimos
+select tst.chk('código de arranque: 8 caracteres legibles', (select device_code_bootstrap('Caja 3')) ~ '^[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$');
+create temp table codes(c text); grant all on codes to authenticated;
+insert into codes select device_code_bootstrap('Caja 3');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c3',false);
+select tst.chk('teléfono nuevo no es caja', device_status() = false);
+select tst.err('teléfono nuevo no puede entrar con PIN', $q$select shift_start('111111')$q$, 'Dispositivo no autorizado');
+select tst.chk('código equivocado no activa', device_activate('ZZZZ-ZZZZ') = false);
+select tst.chk('código bueno activa (minúsculas y sin guion también)', device_activate(lower(replace((select c from codes), '-', ''))) = true);
+select tst.chk('teléfono activado ya es caja', device_status() = true);
+select tst.chk('activado entra con PIN', (select count(*) from shift_start('111111')) = 1);
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c4',false);
+select tst.chk('el código no sirve dos veces', device_activate((select c from codes)) = false);
+reset role; update device_codes set used_at = null, expires_at = now() - interval '1 minute'; set role authenticated;
+select tst.chk('código vencido no activa', device_activate((select c from codes)) = false);
+reset role; select tst.chk('fallos de activación se guardan', (select count(*) from device_code_attempts) = 3); set role authenticated;
+do $$ begin for i in 1..30 loop begin perform device_activate('AAAA-AAA' || i); exception when others then exit; end; end loop; end $$;
+select tst.err('muchos fallos bloquean la activación 15 min', $q$select device_activate('BBBB-BBBB')$q$, 'Demasiados intentos');
+reset role; delete from device_code_attempts; set role authenticated;
+-- el dueño genera códigos y quita teléfonos
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+do $$
+declare ad text; caj text; r jsonb; n int;
+begin
+  select token into ad from shift_start('111111');
+  r := device_code_create(ad, 'Caja 4');
+  perform tst.chk('el dueño genera código de 30 min', (r->>'code') ~ '^.{4}-.{4}$' and (r->>'expires_at')::timestamptz > now() + interval '29 minutes', r::text);
+  perform tst.chk('lista de teléfonos marca este', (select count(*) from device_list(ad) where this_one) = 1 and (select count(*) from device_list(ad)) >= 3);
+  perform tst.err('no puedes quitar tu propio teléfono', format($q$select device_remove(%L, '00000000-0000-0000-0000-00000000000a')$q$, ad), 'estás usando');
+  perform device_remove(ad, '00000000-0000-0000-0000-0000000000c3');
+  perform tst.chk('teléfono quitado sale de la lista', (select count(*) from device_list(ad) where user_id = '00000000-0000-0000-0000-0000000000c3') = 0);
+end $$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c3',false);
+select tst.err('teléfono quitado ya no entra', $q$select shift_start('111111')$q$, 'Dispositivo no autorizado');
+select tst.err('la app no puede crear códigos sin PIN de admin', $q$select device_code_bootstrap('x')$q$, 'permission denied');
 reset role;
 select n, case when ok then 'OK ' else 'FALLA' end as r, name, case when ok then '' else info end from tst.res order by n;

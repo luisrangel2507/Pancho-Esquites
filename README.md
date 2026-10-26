@@ -25,19 +25,20 @@ Reglas:
    - SQL Editor: correr `supabase/migrations/0001_init.sql` y luego `0002_seed.sql`.
    - Authentication → Providers: desactivar "Allow new users to sign up".
    - Storage: bucket público `products` (solo lectura pública; subir solo admin).
-2. **Usuarios** (Authentication → Users → Add user):
-   - `caja@tudominio` → `insert into devices(user_id,label) values ('<uuid>','Caja 1');`
-   - Dueño → `insert into admins(user_id) values ('<uuid>');`
+2. **Teléfonos y empleados**:
+   - Authentication → Sign In / Providers: activar **Allow anonymous sign-ins** (cada teléfono tiene su propia sesión; la app no lleva contraseñas).
+   - Correr `supabase/pegar_todo.sql` y, para el primer teléfono, `select device_code_bootstrap('Caja 1');` → escribir ese código en la pantalla "Activar teléfono".
+   - Los demás teléfonos se activan desde la app: Menú → Teléfonos → Activar otro teléfono (código de un uso, dura 30 min).
    - Primer empleado admin con PIN (desde SQL, una sola vez):
-     `insert into employees(name,pin_hash,role) values ('Dueño', crypt('<pin>', gen_salt('bf',10)), 'admin');`
+     `insert into employees(name,pin_hash,role) values ('Dueño', crypt('<pin de 6 dígitos>', gen_salt('bf',8)), 'admin');`
 3. **GitHub** → repo privado, rama `main` protegida.
 4. **Cloudflare (Workers/Pages)** → conectar repo · build `npm run build` · deploy `npx wrangler deploy` (usa `wrangler.jsonc`, salida `out`) ·
    variables `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-5. **Respaldo**:
-   - `age-keygen -o pancho.key` en tu compu → guarda `pancho.key` en tu gestor de contraseñas.
-   - En Supabase: `create role backup_ro login password '<fuerte>'; grant pg_read_all_data to backup_ro;`
-   - GitHub Secrets: `BACKUP_DB_URL` (con `backup_ro`) y `AGE_PUBLIC_KEY`.
-   - Restaurar: `age -d -i pancho.key pancho-AAAA-MM-DD.sql.gz.age | gunzip | psql <url>`
+5. **Respaldo** (nocturno, cifrado, en GitHub Actions; ver `.github/workflows/backup.yml`):
+   - GitHub → Settings → Secrets and variables → Actions:
+     `BACKUP_DB_URL` = Supabase → Connect → **Session pooler** (con la contraseña de la base) y
+     `BACKUP_PASSPHRASE` = una frase secreta de 12+ caracteres, guardada también fuera de GitHub.
+   - Probar: Actions → backup → Run workflow. Restaurar: ver el encabezado del archivo del workflow.
 
 ## Si un proveedor reporta un incidente
 1. Supabase → Settings → API → **rotar JWT secret** (invalida anon key y sesiones). Actualiza la variable en Cloudflare.
