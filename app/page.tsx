@@ -31,6 +31,7 @@ export default function Caja() {
   const [dev, setDev] = useState<'loading' | 'ready' | 'activate' | 'error'>('loading');
   const [devErr, setDevErr] = useState('');
   const devRef = useRef(dev); devRef.current = dev;
+  const retryRef = useRef<() => void>(() => {});
   const session = dev === 'ready';
   const [phones, setPhones] = useState(false);
   const [emp, setEmp] = useState<Employee | null>(null);
@@ -80,27 +81,39 @@ export default function Caja() {
   // No hay contraseña dentro de la app.
   useEffect(() => {
     let alive = true;
+    // cada paso con límite de 10 s: nunca se queda colgado en "Conectando"
+    const limit = <T,>(pr: PromiseLike<T>, step: string) => Promise.race([
+      Promise.resolve(pr),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`${step}: no respondió en 10 s`)), 10000)),
+    ]);
+    let busy = false;
     const check = async () => {
-      const { data } = await supabase.auth.getSession();
-      const had = !!data.session;
-      if (!had) {
-        const r = await supabase.auth.signInAnonymously();
-        if (r.error) {
-          if (!alive) return;
-          setDevErr(/anonymous|not allowed|disabled/i.test(r.error.message) ? 'Falta activar los inicios anónimos en Supabase.' : 'Sin conexión. Reintentando…');
+      if (busy) return; busy = true;
+      try {
+        const { data } = await limit(supabase.auth.getSession(), 'Sesión');
+        const had = !!data.session;
+        if (!had) {
+          const r = await limit(supabase.auth.signInAnonymously(), 'Inicio anónimo');
+          if (r.error) {
+            if (!alive) return;
+            setDevErr(/anonymous|not allowed|disabled/i.test(r.error.message) ? 'Falta activar los inicios anónimos en Supabase.' : 'Inicio anónimo: ' + r.error.message);
+            setDev('error'); return;
+          }
+        }
+        const { data: ok, error } = await limit(supabase.rpc('device_status'), 'Revisar teléfono');
+        if (!alive) return;
+        if (error) {
+          // base sin la activación nueva: un teléfono que ya tenía sesión sigue funcionando como antes
+          if (/find the function/i.test(error.message)) { if (had) { setDev('ready'); return; } setDevErr('Falta correr el SQL de activación en Supabase.'); }
+          else setDevErr('Revisar teléfono: ' + error.message);
           setDev('error'); return;
         }
-      }
-      const { data: ok, error } = await supabase.rpc('device_status');
-      if (!alive) return;
-      if (error) {
-        // base sin la activación nueva: un teléfono que ya tenía sesión sigue funcionando como antes
-        if (/find the function/i.test(error.message)) { if (had) { setDev('ready'); return; } setDevErr('Falta correr el SQL de activación en Supabase.'); }
-        else setDevErr('Sin conexión. Reintentando…');
-        setDev('error'); return;
-      }
-      setDevErr(''); setDev(ok ? 'ready' : 'activate');
+        setDevErr(''); setDev(ok ? 'ready' : 'activate');
+      } catch (e) {
+        if (alive) { setDevErr((e as Error).message || 'Sin conexión'); setDev('error'); }
+      } finally { busy = false; }
     };
+    retryRef.current = check;
     check();
     const retry = setInterval(() => { if (devRef.current === 'error') check(); }, 10000);
     const removed = () => { setEmp(null); setPin(''); check(); };
@@ -146,7 +159,7 @@ export default function Caja() {
     s + (prods.find(p => p.id === +id)?.price_cents ?? 0) * v.qty, 0), [cart, prods]);
   const count = Object.values(cart).reduce((s, v) => s + v.qty, 0);
 
-  if (dev === 'loading' || dev === 'error') return <Connecting err={devErr} />;
+  if (dev === 'loading' || dev === 'error') return <Connecting err={devErr} onRetry={dev === 'error' ? () => { setDev('loading'); setDevErr(''); retryRef.current(); } : undefined} />;
   if (dev === 'activate') return <ActivateDevice onDone={() => setDev('ready')} />;
 
   if (!emp) return <PinScreen onOk={(e, p, c) => { loginCash.current = c ?? null; setEmp(e); setPin(p); }} />;

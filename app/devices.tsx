@@ -31,12 +31,13 @@ export function ActivateDevice({ onDone }: { onDone: () => void }) {
   </div>;
 }
 
-export function Connecting({ err }: { err: string }) {
+export function Connecting({ err, onRetry }: { err: string; onRetry?: () => void }) {
   return <div className="pin">
     <div className="hero"><img src="/logo.webp" alt="Pancho Esquites" /></div>
     <h1 className="ptitle">Conectando <span>caja</span>…</h1>
-    <p className="psub">{err || 'Un momento'}</p>
-    <div className="spin" />
+    <p className="psub act-sub">{err || 'Un momento'}</p>
+    {onRetry ? <button className="regv act" onClick={onRetry}>Reintentar</button> : <div className="spin" />}
+    {onRetry && <p className="psub">Se reintenta solo cada 10 segundos.</p>}
   </div>;
 }
 
