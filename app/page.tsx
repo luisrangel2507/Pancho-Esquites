@@ -32,6 +32,7 @@ type Cart = Record<number, { qty: number; note: string }>;
 
 export default function Caja() {
   const [session, setSession] = useState<boolean | null>(null);
+  const [autoErr, setAutoErr] = useState('');
   const [emp, setEmp] = useState<Employee | null>(null);
   const [pin, setPin] = useState(''); // pase de turno (o PIN si la base es vieja); solo en memoria mientras dura el turno
   const [cats, setCats] = useState<Category[]>([]);
@@ -81,6 +82,8 @@ export default function Caja() {
     const auto = async () => {
       if (!AUTO_USER || !AUTO_PASS) return false;
       const { error } = await supabase.auth.signInWithPassword({ email: toEmail(AUTO_USER), password: AUTO_PASS });
+      if (error) setAutoErr(/invalid/i.test(error.message) ? 'La cuenta de la caja no coincide (usuario o contraseña de Cloudflare).' : 'Sin conexión. Reintentando…');
+      else setAutoErr('');
       return !error;
     };
     (async () => {
@@ -91,7 +94,12 @@ export default function Caja() {
     const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
       if (s) setSession(true); else setSession(await auto());
     });
-    return () => { alive = false; sub.subscription.unsubscribe(); };
+    const retry = setInterval(async () => {
+      if (!alive || !AUTO_USER) return;
+      const { data } = await supabase.auth.getSession();
+      if (!data.session && alive) setSession(await auto());
+    }, 10000);
+    return () => { alive = false; clearInterval(retry); sub.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -133,7 +141,8 @@ export default function Caja() {
   const count = Object.values(cart).reduce((s, v) => s + v.qty, 0);
 
   if (session === null) return null;
-  if (!session) return <DeviceLogin />;
+  // Con la cuenta de la caja configurada nunca se pide usuario y contraseña: solo el PIN
+  if (!session) return AUTO_USER && AUTO_PASS ? <Connecting err={autoErr} /> : <DeviceLogin />;
 
   if (!emp) return <PinScreen onOk={(e, p, c) => { loginCash.current = c ?? null; setEmp(e); setPin(p); }} />;
 
@@ -316,6 +325,15 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 const UserIcon = () => <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>;
 const Lock = () => <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
+
+function Connecting({ err }: { err: string }) {
+  return <div className="pin">
+    <div className="hero"><img src="/logo.webp" alt="Pancho Esquites" /></div>
+    <h1 className="ptitle">Conectando <span>caja</span>…</h1>
+    <p className="psub">{err || 'Un momento'}</p>
+    <div className="spin" />
+  </div>;
+}
 
 function DeviceLogin() {
   const [user, setUser] = useState(''); const [pass, setPass] = useState(''); const [err, setErr] = useState('');
