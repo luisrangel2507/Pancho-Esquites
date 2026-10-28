@@ -340,3 +340,5 @@ button.pill{font-family:inherit;cursor:pointer}
 .dev-code{letter-spacing:4px!important;font-size:38px!important}
 .dev-ic{font-size:38px}
 .sup input{margin:6px 0 8px}
+
+.ok-msg{background:#D2EBCB;color:#0B4A2A;border-radius:12px;padding:10px 12px;font-size:14px;margin:4px 0 8px}

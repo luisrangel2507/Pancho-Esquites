@@ -276,5 +276,58 @@ end $$;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c3',false);
 select tst.err('teléfono quitado ya no entra', $q$select shift_start('111111')$q$, 'Dispositivo no autorizado');
 select tst.err('la app no puede crear códigos sin PIN de admin', $q$select device_code_bootstrap('x')$q$, 'permission denied');
+-- Reporte del día por correo
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false);
+do $$
+declare ad text; caj text; r text[];
+begin
+  select token into ad from shift_start('111111');
+  perform tst.err('correo inválido rechazado', format($q$select report_settings_set(%L, array['no-es-correo'])$q$, ad), 'no válido');
+  perform tst.err('máximo 3 correos', format($q$select report_settings_set(%L, array['a@x.mx','b@x.mx','c@x.mx','d@x.mx'])$q$, ad), 'Máximo 3');
+  r := report_settings_set(ad, array[' Dueno@Correo.MX ', 'dueno@correo.mx', 'socio@correo.mx'], 'https://abc123.supabase.co/functions/v1/aviso-cierre');
+  perform tst.chk('guarda correos limpios y sin repetir', r = array['dueno@correo.mx','socio@correo.mx'] or r = array['socio@correo.mx','dueno@correo.mx'], r::text);
+  perform tst.chk('lee los correos guardados', cardinality(report_settings_get(ad)) = 2);
+end $$;
+reset role;
+select tst.chk('la caja no puede leer los correos directo', not has_table_privilege('authenticated', 'report_settings', 'select'));
+delete from net.calls;
+set role authenticated;
+do $$
+declare ad text; ch int;
+begin
+  select token into ad from shift_start('111111');
+  select id into ch from products where short_name = 'Chico';
+  reset role;
+  update cash_sessions set opened_at = opened_at - interval '1 day', closed_at = closed_at - interval '1 day' where closed_at is not null and biz_day(opened_at) = biz_day(now());
+  set role authenticated;
+  if not (cash_status(ad)->>'open')::boolean then perform cash_open(ad, 10000); end if;
+  perform register_sale(ad, format('[{"product_id":%s,"qty":1}]', ch)::jsonb, 'cash', 3500);
+  perform cash_close(ad, 13500);
+end $$;
+reset role;
+select tst.chk('al cerrar la caja pide el reporte por correo',
+  (select count(*) from net.calls where body->>'action' = 'report') = 1
+  and (select (body->>'session_id')::bigint from net.calls where body->>'action' = 'report') = (select max(id) from cash_sessions));
+delete from net.calls;
+set role authenticated;
+do $$ declare ad text; begin
+  select token into ad from shift_start('111111');
+  perform tst.chk('enviar prueba pide el reporte', report_send_test(ad));
+  perform tst.err('la app no llama report_request directo', $q$select report_request(1)$q$, 'permission denied');
+end $$;
+reset role;
+select tst.chk('prueba: una llamada a la función', (select count(*) from net.calls where body->>'action' = 'report') = 1);
+update report_settings set emails = '{}';
+delete from net.calls;
+set role authenticated;
+do $$ declare ad text; ch int; begin
+  select token into ad from shift_start('111111');
+  select id into ch from products where short_name = 'Chico';
+  reset role; update cash_sessions set opened_at = opened_at - interval '1 day', closed_at = closed_at - interval '1 day' where biz_day(opened_at) = biz_day(now()); set role authenticated;
+  perform cash_open(ad, 0); perform cash_close(ad, 0);
+end $$;
+reset role;
+select tst.chk('sin correos guardados no manda nada', (select count(*) from net.calls) = 0);
 reset role;
 select n, case when ok then 'OK ' else 'FALLA' end as r, name, case when ok then '' else info end from tst.res order by n;
