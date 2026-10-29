@@ -14,7 +14,7 @@ export const metadata = {
   appleWebApp: { capable: true, title: 'Pancho Esquites', statusBarStyle: 'black-translucent' as const },
   formatDetection: { telephone: false },
 };
-export const viewport = { themeColor: '#4E2C14', viewportFit: 'cover' as const, width: 'device-width', initialScale: 1 };
+export const viewport = { themeColor: '#0B0B0C', viewportFit: 'cover' as const, width: 'device-width', initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return <html lang="es"><body className={`${script.variable} ${oswald.variable} ${slab.variable} ${work.variable}`}><Pwa />{children}</body></html>;

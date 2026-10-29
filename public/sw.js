@@ -2,7 +2,7 @@
 // - Archivos con nombre único (/_next/static) e imágenes: del teléfono primero (no cambian).
 // - Páginas: red primero, para tener siempre la versión nueva; sin red, la última guardada.
 // Nunca guarda llamadas a la API (/api): ventas y datos siempre van directo al servidor.
-const CACHE = 'pancho-v3';
+const CACHE = 'pancho-v4';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(
