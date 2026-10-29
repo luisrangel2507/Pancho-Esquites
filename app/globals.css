@@ -402,3 +402,30 @@ body:has(.auth){background:var(--bg)}
 .pend{background:#3A1614;color:#FF8A7A}
 .lnk{color:#FF8A7A}
 .ico.fld,.st-f .eye{color:#8A857A}
+
+/* ───── Panel de ventas: estilo formal ───── */
+.rep-title{text-align:left;font-size:22px;font-weight:600;letter-spacing:0;margin:10px 2px 12px;color:var(--ink)}
+.k-ph,.spark,.art{display:none}
+.sec.empty{padding:22px 14px}
+.sec.empty h3{font-size:15px;font-weight:500;color:var(--muted)}
+.empty-in p{font-size:14px;font-weight:500}
+.rep-tabs{border-radius:10px;padding:4px;gap:4px}
+.rep-tabs button{border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;background:transparent;color:var(--muted)}
+.rep-tabs button.on{background:var(--surf2);color:var(--ink);box-shadow:inset 0 -2px 0 var(--gold)}
+.kbig{background:var(--surf);border:1px solid var(--line);box-shadow:none;border-radius:12px;min-height:0;padding:16px 18px;margin:14px 0 10px;gap:14px}
+.k-ic{width:40px;height:40px;flex-basis:40px;border-radius:10px;background:var(--surf2)}
+.k-ic .ico{width:22px;height:22px}
+.k-t small{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.k-t b,.kpi b,.ok-m b,.sup-new b{font-family:var(--f-work),sans-serif;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.k-t b{font-size:36px;color:var(--ink)}
+.kpi,.sec{border-radius:12px}
+.kpi{padding:12px 14px;gap:2px}
+.kp-ic,.sec-ic{width:32px;height:32px;border-radius:8px;margin-bottom:4px}
+.kp-ic .ico,.sec-ic .ico{width:18px;height:18px}
+.kpi small{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.kpi b{font-size:22px;color:var(--ink)}
+.sec-h h3{font-size:14px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.5px}
+.vb em,.li-r strong,.hb-top b{font-variant-numeric:tabular-nums}
+.vb em{color:var(--ink)}
+.hb-fill{background:linear-gradient(90deg,#C9A227,var(--gold))}
+.dl.up{color:#4FD08A}.dl.down{color:#FF8A7A}
