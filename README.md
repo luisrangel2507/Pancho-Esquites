@@ -54,8 +54,3 @@ Reglas:
 4. Probar ya (con la caja abierta): en SQL Editor
    `select net.http_post(url := fn_url, headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',cron_secret), body := '{}'::jsonb) from push_config;`
    `fn_url` se llena solo la primera vez que un teléfono activa los avisos.
-
-## Reporte del día por correo
-- Brevo (gratis, 300 correos/día): crear cuenta, verificar un correo remitente (Senders) y crear una API key (SMTP & API → API Keys).
-- Supabase → Edge Functions → Secrets: `BREVO_API_KEY` = la llave y `REPORT_FROM` = el correo remitente verificado. Volver a desplegar `aviso-cierre` con el código actual.
-- En la app (admin): Menú → Reporte por correo → hasta 3 correos → Guardar → Enviar reporte de prueba. Llega uno cada cierre de caja.

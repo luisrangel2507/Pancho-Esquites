@@ -5,7 +5,6 @@ import Reports from './reports';
 import { askPush, enablePush } from '@/lib/push';
 import { OpenCash, CloseCash, CashBlocked, dayTime, type Cash } from './cash';
 import { ActivateDevice, Connecting, DevicesSheet } from './devices';
-import { ReportSheet } from './report';
 
 const MAX_ADMINS = 2;
 const CLOSE_REMINDER_HOUR = 21; // 9 pm, hora de Ciudad de México
@@ -35,7 +34,6 @@ export default function Caja() {
   const retryRef = useRef<() => void>(() => {});
   const session = dev === 'ready';
   const [phones, setPhones] = useState(false);
-  const [reportSheet, setReportSheet] = useState(false);
   const [emp, setEmp] = useState<Employee | null>(null);
   const [pin, setPin] = useState(''); // pase de turno (o PIN si la base es vieja); solo en memoria mientras dura el turno
   const [cats, setCats] = useState<Category[]>([]);
@@ -207,7 +205,6 @@ export default function Caja() {
           {emp.role === 'admin' && <button onClick={() => { setReports(true); setMenu(false); }}>Ventas e informes</button>}
           {emp.role === 'admin' && <button onClick={() => { setStaff(true); setMenu(false); }}>Empleados</button>}
           {emp.role === 'admin' && <button onClick={() => { setPhones(true); setMenu(false); }}>Teléfonos</button>}
-          {emp.role === 'admin' && <button onClick={() => { setReportSheet(true); setMenu(false); }}>Reporte por correo</button>}
           {emp.role === 'admin' && <a href="/admin">Administración</a>}
           {typeof Notification !== 'undefined' && Notification.permission === 'default' &&
             <button onClick={() => { setMenu(false); askPush(pin); }}>Activar avisos de cierre</button>}
@@ -268,7 +265,6 @@ export default function Caja() {
         onDone={() => rpc('cash_status', { p_pin: pin }).then(({ data, error }) => setCaja(error ? { open: false } : data as Cash))} />}
       {closing && <CloseCash pin={pin} onClose={() => setClosing(false)}
         onDone={logout} />}
-      {reportSheet && <ReportSheet pin={pin} onClose={() => setReportSheet(false)} />}
       {phones && <DevicesSheet pin={pin} onClose={() => setPhones(false)} />}
       {reports && <Reports pin={pin} onClose={() => setReports(false)} />}
       {staff && <Staff pin={pin} meId={emp.employee_id} onClose={() => setStaff(false)} />}
