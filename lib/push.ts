@@ -1,4 +1,4 @@
-import { rpc } from './supabase';
+import { rpc } from './api';
 
 // Registra este teléfono para recibir el aviso de cierre aunque la app esté cerrada.
 // Requiere permiso de notificaciones; si algo falla, la app sigue igual (queda el aviso en pantalla).
@@ -13,8 +13,7 @@ export async function enablePush(pass: string) {
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const r = await fetch(`${url}/functions/v1/aviso-cierre`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! } });
+      const r = await fetch('/api/push-key');
       if (!r.ok) return;
       const { publicKey } = await r.json();
       if (!publicKey) return;

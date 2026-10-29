@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { rpc, mx } from '@/lib/supabase';
+import { rpc, mx } from '@/lib/api';
 import { askPush } from '@/lib/push';
 
 export type CashOpen = {

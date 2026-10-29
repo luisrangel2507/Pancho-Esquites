@@ -46,9 +46,9 @@ begin
   select sale_id into s2 from register_sale(tk2, format('[{"product_id":%s,"qty":1}]', prod_md)::jsonb, 'card', null);
   perform tst.chk('cobra efectivo y tarjeta', s1 is not null and s2 is not null);
   perform tst.chk('precio lo pone la base (2 × $35 = $70)', t1 = 7000, t1::text);
-  select count(*) into n from sales;
+  reset role; select count(*) into n from sales; set role authenticated;
   perform tst.err('efectivo insuficiente rechazado', format($q$select * from register_sale(%L, '[{"product_id":%s,"qty":1}]', 'cash', 100)$q$, tk2, prod_ch), 'no cubre');
-  perform tst.chk('venta rechazada no deja basura', (select count(*) from sales) = n);
+  reset role; perform tst.chk('venta rechazada no deja basura', (select count(*) from sales) = n and n > 0, n::text); set role authenticated;
   perform tst.err('cantidad 0 rechazada', format($q$select * from register_sale(%L, '[{"product_id":%s,"qty":0}]', 'card', null)$q$, tk2, prod_ch), 'Cantidad');
   perform tst.err('producto inexistente rechazado', format($q$select * from register_sale(%L, '[{"product_id":99999,"qty":1}]', 'card', null)$q$, tk2), 'Producto no válido');
   perform tst.err('orden vacía rechazada', format($q$select * from register_sale(%L, '[]', 'card', null)$q$, tk2), 'vacía');
@@ -120,7 +120,11 @@ select tst.err('pin_verify no se llama desde la app', $q$select pin_verify('1111
 -- permisos directos
 select tst.err('check_pin no se llama desde la app', $q$select check_pin('111111')$q$, 'permission denied');
 select tst.err('cash_summary no se llama desde la app', $q$select cash_summary(1)$q$, 'permission denied');
-select tst.chk('la caja no puede leer los pases', (select count(*) from shifts) = 0);
+select tst.err('la caja no puede leer los pases', $q$select count(*) from shifts$q$, 'permission denied');
+select tst.err('la caja no puede leer el hash de los PIN', $q$select pin_hash from employees$q$, 'permission denied');
+select tst.err('la caja no puede leer ventas directo', $q$select count(*) from sales$q$, 'permission denied');
+select tst.err('la caja no puede escribir ventas directo', $q$insert into sales(employee_id, total_cents, pay_method) values (gen_random_uuid(), 1, 'cash')$q$, 'permission denied');
+select tst.chk('la caja sí lee el menú', (select count(*) from products) > 0);
 reset role;
 set role anon;
 select tst.err('anónimo no puede entrar', $q$select shift_start('111111')$q$, 'permission denied');

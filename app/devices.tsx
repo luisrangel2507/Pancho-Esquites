@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { supabase, rpc } from '@/lib/supabase';
+import { api, rpc } from '@/lib/api';
 import { dayTime } from './cash';
 
 // Formato del código: XXXX-XXXX, sin letras confusas
@@ -14,7 +14,7 @@ export function ActivateDevice({ onDone }: { onDone: () => void }) {
   const [code, setCode] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   async function go() {
     setErr(''); setBusy(true);
-    const { data, error } = await supabase.rpc('device_activate', { p_code: code });
+    const { data, error } = await api.rpc('device_activate', { p_code: code });
     setBusy(false);
     if (error) return setErr(error.message);
     if (!data) return setErr('Código incorrecto o vencido. Pide uno nuevo.');

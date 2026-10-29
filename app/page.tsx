@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { supabase, rpc, mx, Product, Category, Employee } from '@/lib/supabase';
+import { api, rpc, mx, Product, Category, Employee } from '@/lib/api';
 import Reports from './reports';
 import { askPush, enablePush } from '@/lib/push';
 import { OpenCash, CloseCash, CashBlocked, dayTime, type Cash } from './cash';
@@ -77,7 +77,7 @@ export default function Caja() {
   }, []);
   const [ticket, setTicket] = useState<{ id: number; total: number } | null>(null);
 
-  // Cada teléfono tiene su propia sesión (anónima de Supabase) y se activa una vez con un código del dueño.
+  // Cada teléfono tiene su propia sesión (anónima, la firma el servidor) y se activa una vez con un código del dueño.
   // No hay contraseña dentro de la app.
   useEffect(() => {
     let alive = true;
@@ -90,22 +90,20 @@ export default function Caja() {
     const check = async () => {
       if (busy) return; busy = true;
       try {
-        const { data } = await limit(supabase.auth.getSession(), 'Sesión');
+        const { data } = await limit(api.auth.getSession(), 'Sesión');
         const had = !!data.session;
         if (!had) {
-          const r = await limit(supabase.auth.signInAnonymously(), 'Inicio anónimo');
+          const r = await limit(api.auth.signInAnonymously(), 'Inicio anónimo');
           if (r.error) {
             if (!alive) return;
-            setDevErr(/anonymous|not allowed|disabled/i.test(r.error.message) ? 'Falta activar los inicios anónimos en Supabase.' : 'Inicio anónimo: ' + r.error.message);
+            setDevErr('Sin conexión con el servidor: ' + r.error.message);
             setDev('error'); return;
           }
         }
-        const { data: ok, error } = await limit(supabase.rpc('device_status'), 'Revisar teléfono');
+        const { data: ok, error } = await limit(api.rpc('device_status'), 'Revisar teléfono');
         if (!alive) return;
         if (error) {
-          // base sin la activación nueva: un teléfono que ya tenía sesión sigue funcionando como antes
-          if (/find the function/i.test(error.message)) { if (had) { setDev('ready'); return; } setDevErr('Falta correr el SQL de activación en Supabase.'); }
-          else setDevErr('Revisar teléfono: ' + error.message);
+          setDevErr('Revisar teléfono: ' + error.message);
           setDev('error'); return;
         }
         setDevErr(''); setDev(ok ? 'ready' : 'activate');
@@ -146,12 +144,9 @@ export default function Caja() {
   useEffect(() => {
     if (!session) return;
     (async () => {
-      const [c, p] = await Promise.all([
-        supabase.from('categories').select('id,name').order('sort'),
-        supabase.from('products').select('*').eq('active', true).order('sort'),
-      ]);
-      setCats(c.data ?? []); setProds(p.data ?? []);
-      setCur(cur => cur ?? c.data?.[0]?.id ?? null);
+      const { data } = await api.menu();
+      setCats(data?.categories ?? []); setProds(data?.products ?? []);
+      setCur(cur => cur ?? data?.categories?.[0]?.id ?? null);
     })();
   }, [session]);
 
@@ -182,7 +177,7 @@ export default function Caja() {
 
   const cashCents = Math.round(parseFloat(cash || '0') * 100);
   const photoOf = (p: Product): string | null => {
-    if (p.photo_path) return supabase.storage.from('products').getPublicUrl(p.photo_path).data.publicUrl;
+    if (p.photo_path) return api.photo(p.photo_path);
     const f = cats.find(c => c.id === p.category_id)?.name === 'Esquites' ? FOTOS[p.short_name ?? p.name] : undefined;
     return f ? `/fotos/${f}.webp` : null;
   };
@@ -205,7 +200,6 @@ export default function Caja() {
           {emp.role === 'admin' && <button onClick={() => { setReports(true); setMenu(false); }}>Ventas e informes</button>}
           {emp.role === 'admin' && <button onClick={() => { setStaff(true); setMenu(false); }}>Empleados</button>}
           {emp.role === 'admin' && <button onClick={() => { setPhones(true); setMenu(false); }}>Teléfonos</button>}
-          {emp.role === 'admin' && <a href="/admin">Administración</a>}
           {typeof Notification !== 'undefined' && Notification.permission === 'default' &&
             <button onClick={() => { setMenu(false); askPush(pin); }}>Activar avisos de cierre</button>}
           <button className="mx" onClick={() => setMenu(false)}>Cerrar menú</button>
@@ -230,7 +224,7 @@ export default function Caja() {
             return <div key={p.id} role="button" className={'card' + (cart[p.id] ? ' sel' : '')} onClick={() => add(p.id, 1)}>
               <div className="ph">
                 {p.photo_path
-                  ? <img src={supabase.storage.from('products').getPublicUrl(p.photo_path).data.publicUrl} alt="" />
+                  ? <img src={api.photo(p.photo_path)} alt="" />
                   : local ? <img src={`/fotos/${local}.webp`} alt="" /> : icon(cat)}
               </div>
               <div className="info">
@@ -331,7 +325,7 @@ const I = {
   printer: sv(<><path d="M7 9V3h10v6M7 17H4.500A1.500 1.500 0 0 1 3 15.500v-5A1.500 1.500 0 0 1 4.500 9h15a1.500 1.500 0 0 1 1.500 1.500v5a1.500 1.500 0 0 1-1.500 1.500H17" /><rect x="7" y="14" width="10" height="7" rx="1" /></>),
 };
 const USER_SVG = <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2" /><path d="M3.5 21a8.5 8.5 0 0 1 17 0z" /></svg>;
-// Fotos y descripciones de respaldo mientras un producto no tiene foto en Supabase Storage
+// Fotos y descripciones de respaldo mientras un producto no tiene foto en /public/fotos
 const FOTOS: Record<string, string> = { 'Chico': 'chico', 'Mediano': 'mediano', 'Grande': 'grande', 'Extragrande': 'extragrande', 'Rebanado por pieza': 'rebanado', 'Combinado mediano': 'combinado-mediano', 'Combinado grande': 'combinado-grande', 'Asado grande': 'asado-grande', 'Vaso extra': 'vaso-extra' };
 const DESC: Record<string, string> = { 'Chico': 'Clásico y delicioso', 'Mediano': 'El favorito de todos', 'Grande': 'Más sabor, más antojo', 'Extragrande': 'Para los que sí comen', 'Rebanado por pieza': 'Elote en rebanadas', 'Combinado mediano': 'Esquite + Elote', 'Combinado grande': 'Doble antojo', 'Asado grande': 'Al carbón, más sabor', 'Vaso extra': 'Perfecto para compartir' };
 

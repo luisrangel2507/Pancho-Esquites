@@ -1,60 +1,44 @@
 # Pancho Esquites POS
 
-Next.js (exportación estática) en **Cloudflare Pages** + **Supabase** (Postgres, Auth, Storage).
-Respaldo nocturno cifrado en **GitHub Actions**. Costo base: $0/mes.
+Caja registradora para celular (app instalable). **Todo vive en Railway**: la app, el servidor y la base de datos Postgres. Costo base: el uso de Railway.
 
-## Modelo de seguridad
+## Cómo está armado
+- **App** (Next.js exportado a archivos estáticos, carpeta `app/`). Se instala en el celular y no lleva ninguna contraseña.
+- **Servidor** (`server/`, Node): sirve la app, da a cada teléfono una sesión firmada y deja llamar a las funciones de la base. Manda el aviso de cierre de las 9 pm.
+- **Base de datos** (Postgres): todas las reglas viven en funciones SQL (`supabase/migrations/` y `db/`): precios, PIN, caja, permisos. El navegador no puede leer ni escribir tablas directo; solo llama funciones, y cada función valida el PIN y el rol.
 
-| Si roban… | Qué obtienen | Por qué no es grave |
-|---|---|---|
-| Cloudflare (hosting) | Archivos estáticos y la anon key | La anon key sin sesión no puede leer ni ejecutar nada (RLS + `revoke ... from anon`). |
-| Sesión de una caja | Ver menú y registrar ventas con PIN válido | No ve ventas, empleados ni inventario. 5 intentos de PIN cada 5 min. |
-| PIN de un cajero | Cobrar como ese empleado | No puede anular, ni ver reportes. Lo desactivas desde Admin. |
-| La base de datos | PINs con hash bcrypt, ventas | No hay tarjetas ni datos personales de clientes. |
-| Cuenta admin | Necesitan correo y contraseña del admin | Usa una contraseña larga y única solo para esto. |
+## Publicar en Railway (una vez)
+1. Railway → **New Project** → **Deploy from GitHub repo** → este repo y la rama.
+2. En el mismo proyecto: **New** → **Database** → **PostgreSQL**.
+3. Servicio de la app → **Variables**:
+   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (referencia a la base)
+   - `BOOTSTRAP_ADMIN_PIN` = 6 números para el administrador del primer arranque
+4. Servicio de la app → **Settings → Networking → Generate Domain**.
+5. Primer arranque: el servidor crea las tablas y el menú, crea al administrador "Dueño" y escribe en los **Logs** un **código para activar el primer teléfono**. Abre la dirección en el celular, escribe el código y entra con el PIN.
+6. Borra la variable `BOOTSTRAP_ADMIN_PIN` (ya no hace falta).
 
-Reglas:
-- **Nunca** subas la `service_role` key a Cloudflare, GitHub ni al código. Este proyecto no la usa.
-- Precios y totales se calculan en la base (`register_sale`), no en el navegador.
-- 2FA con app autenticadora en GitHub, Cloudflare, Supabase y tu correo.
-- Llaves distintas por cliente/proyecto.
+Más teléfonos: Menú → **Teléfonos** → Activar otro teléfono (código de un solo uso, dura 30 min). Si se pierden todos: reinicia el servicio y el código nuevo aparece en los Logs.
 
-## Puesta en marcha
+## Seguridad
+- Cada teléfono es una sesión anónima firmada por el servidor; sin activar con código no puede ni intentar un PIN.
+- PIN de 6 dígitos; 5 intentos fallidos bloquean 5 minutos ese teléfono. El PIN se guarda solo como hash (bcrypt).
+- El rol de la app no tiene permiso sobre las tablas (solo lee el menú): `db/hardening.sql` lo vuelve a cerrar en cada arranque.
+- Sesión del empleado: se cierra a las 3 horas sin uso. PIN de soporte temporal para el desarrollador (24 h, 3 o 7 días, revocable).
+- El repo debe ser **privado**. Cambia el PIN de cada empleado al entregar.
 
-1. **Supabase** → proyecto nuevo (región `us-east` o la más cercana).
-   - SQL Editor: correr `supabase/migrations/0001_init.sql` y luego `0002_seed.sql`.
-   - Authentication → Providers: desactivar "Allow new users to sign up".
-   - Storage: bucket público `products` (solo lectura pública; subir solo admin).
-2. **Teléfonos y empleados**:
-   - Authentication → Sign In / Providers: activar **Allow anonymous sign-ins** (cada teléfono tiene su propia sesión; la app no lleva contraseñas).
-   - Correr `supabase/pegar_todo.sql` y, para el primer teléfono, `select device_code_bootstrap('Caja 1');` → escribir ese código en la pantalla "Activar teléfono".
-   - Los demás teléfonos se activan desde la app: Menú → Teléfonos → Activar otro teléfono (código de un uso, dura 30 min).
-   - Primer empleado admin con PIN (desde SQL, una sola vez):
-     `insert into employees(name,pin_hash,role) values ('Dueño', crypt('<pin de 6 dígitos>', gen_salt('bf',8)), 'admin');`
-3. **GitHub** → repo privado, rama `main` protegida.
-4. **Cloudflare (Workers/Pages)** → conectar repo · build `npm run build` · deploy `npx wrangler deploy` (usa `wrangler.jsonc`, salida `out`) ·
-   variables `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-5. **Respaldo** (nocturno, cifrado, en GitHub Actions; ver `.github/workflows/backup.yml`):
-   - GitHub → Settings → Secrets and variables → Actions:
-     `BACKUP_DB_URL` = Supabase → Connect → **Session pooler** (con la contraseña de la base) y
-     `BACKUP_PASSPHRASE` = una frase secreta de 12+ caracteres, guardada también fuera de GitHub.
-   - Probar: Actions → backup → Run workflow. Restaurar: ver el encabezado del archivo del workflow.
+## Aviso de cierre (9 pm)
+El servidor revisa cada día a las 03:00 UTC (9 pm de Ciudad de México): si la caja sigue abierta, manda una notificación push a los teléfonos que aceptaron avisos. En iPhone solo funciona con la app agregada a la pantalla de inicio (iOS 16.4+).
 
-## Si un proveedor reporta un incidente
-1. Supabase → Settings → API → **rotar JWT secret** (invalida anon key y sesiones). Actualiza la variable en Cloudflare.
-2. Cambiar contraseña de `backup_ro` y el secret en GitHub.
-3. Cambiar contraseñas de `caja@` y admins; reactivar cajas.
-4. Revisar `sales` e `inventory_moves` de las últimas horas.
+## Respaldo
+`.github/workflows/backup.yml` respalda la base cada noche, cifrada, y la guarda 30 días.
+- GitHub → Settings → Secrets → Actions: `BACKUP_DB_URL` = Railway → Postgres → Variables → `DATABASE_PUBLIC_URL`, y `BACKUP_PASSPHRASE` = frase de 12+ caracteres (guárdala aparte).
+- Probar: Actions → backup → Run workflow.
+- **Restaurar:** `gpg -d pancho-AAAA-MM-DD.sql.gz.gpg | gunzip > respaldo.sql`, luego
+  `psql "<DATABASE_PUBLIC_URL>" -c "drop schema public cascade; create schema public;"` y `psql "<DATABASE_PUBLIC_URL>" -f respaldo.sql`; después reinicia el servicio (reaplica permisos y escribe un código para activar teléfonos).
 
-## Aviso de cierre de caja (notificaciones push)
-1. Correr `supabase/pegar_todo.sql` (crea la tabla de teléfonos, el secreto y el aviso diario a las 03:00 UTC = 9 pm CDMX).
-2. Supabase → Edge Functions → nueva función **`aviso-cierre`** con el código de `supabase/functions/aviso-cierre/index.ts` → Deploy.
-   En su configuración, **apagar "Enforce JWT verification"** (el cron no manda sesión; la función se protege con el secreto de `push_config`).
-3. En cada teléfono: menú → "Activar avisos de cierre" (o al abrir la caja) y permitir. En iPhone solo funciona con la app agregada a la pantalla de inicio (iOS 16.4+).
-4. Probar ya (con la caja abierta): en SQL Editor
-   `select net.http_post(url := fn_url, headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',cron_secret), body := '{}'::jsonb) from push_config;`
-   `fn_url` se llena solo la primera vez que un teléfono activa los avisos.
+## Pruebas
+- Base de datos (necesita Postgres local): `PGHOST=... PGPORT=... sh supabase/tests/run.sh`
+- Servidor de punta a punta: arrancar con una base vacía y correr `node server/e2e.mjs http://127.0.0.1:3000 <código del primer teléfono> <BOOTSTRAP_ADMIN_PIN>`
 
-## Publicar en Railway (alternativa a Cloudflare)
-Railway → New Project → Deploy from GitHub repo → este repo y rama. Variables: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Settings → Networking → Generate Domain.
-El build (`npm run build`) y el servidor (`npm start`, `server.mjs`) ya están configurados en `railway.json`. La base de datos sigue en Supabase.
+## Desarrollo
+`npm run build` genera `out/`; `npm start` levanta el servidor (necesita `DATABASE_URL`). La carpeta `supabase/` conserva ese nombre por historia: solo contiene el SQL y sus pruebas.

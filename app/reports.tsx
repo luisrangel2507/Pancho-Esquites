@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { rpc, mx } from '@/lib/supabase';
+import { rpc, mx } from '@/lib/api';
 import { CashHistory } from './cash';
 
 type Row = { name: string; qty: number; cents: number };

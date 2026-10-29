@@ -1,11 +1,8 @@
-# Respaldo nocturno cifrado de la base, fuera de Supabase. Se guarda 30 días como artefacto de este repo (privado).
+# Respaldo nocturno cifrado de la base de Railway. Se guarda 30 días como artefacto de este repo (debe ser PRIVADO).
 # Secretos en GitHub (Settings → Secrets and variables → Actions):
-#   BACKUP_DB_URL      cadena "Session pooler" de Supabase (Connect → Session pooler) con la contraseña de la base
-#   BACKUP_PASSPHRASE  frase secreta para cifrar; guárdala aparte: sin ella el respaldo no se puede abrir
-# Restaurar en un proyecto nuevo de Supabase:
-#   gpg -d pancho-AAAA-MM-DD.sql.gz.gpg | gunzip | psql "<cadena de la base>"
-#   y luego correr supabase/pegar_todo.sql (recrea el aviso de las 9 pm) y activar los teléfonos con
-#   select device_code_bootstrap('Caja 1');   — teléfonos, pases y avisos no van en el respaldo.
+#   BACKUP_DB_URL      Railway → servicio Postgres → Variables → DATABASE_PUBLIC_URL
+#   BACKUP_PASSPHRASE  frase secreta de 12+ caracteres; guárdala aparte: sin ella el respaldo no se puede abrir
+# Restaurar (ver README): gpg -d pancho-AAAA-MM-DD.sql.gz.gpg | gunzip | psql "<DATABASE_PUBLIC_URL>"
 name: backup
 on:
   schedule: [{ cron: '0 9 * * *' }]   # 3:00 am hora de Ciudad de México
@@ -31,8 +28,9 @@ jobs:
         run: |
           set -o pipefail
           f="pancho-$(date -u +%F).sql.gz.gpg"
-          /usr/lib/postgresql/17/bin/pg_dump "$DB" --no-owner --no-privileges --schema=public \
-            --exclude-table-data='public.(devices|admins|shifts|pin_attempts|device_codes|device_code_attempts|push_subscriptions|push_config)' \
+          # teléfonos activados, sesiones, avisos y secretos del servidor no van en el respaldo
+          /usr/lib/postgresql/17/bin/pg_dump "$DB" --no-owner --schema=public \
+            --exclude-table-data='public.(devices|admins|shifts|pin_attempts|device_codes|device_code_attempts|push_subscriptions|push_config|server_config)' \
             | sed '/^CREATE SCHEMA public;$/d' | gzip \
             | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 --symmetric --cipher-algo AES256 -o "$f" 3<<<"$PASS"
           [ -s "$f" ] || { echo "::error::El respaldo salió vacío"; exit 1; }

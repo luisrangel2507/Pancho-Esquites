@@ -1,7 +1,7 @@
 // Service worker: permite instalar la app y abrirla rápido.
 // - Archivos con nombre único (/_next/static) e imágenes: del teléfono primero (no cambian).
 // - Páginas: red primero, para tener siempre la versión nueva; sin red, la última guardada.
-// Nunca guarda llamadas a Supabase: ventas y datos siempre van directo a la base.
+// Nunca guarda llamadas a la API (/api): ventas y datos siempre van directo al servidor.
 const CACHE = 'pancho-v3';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -14,7 +14,7 @@ const put = (req, res) => { if (res.ok) { const copy = res.clone(); caches.open(
 self.addEventListener('fetch', e => {
   const req = e.request;
   const url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
   const fixed = url.pathname.startsWith('/_next/static/') || /\.(webp|png|woff2)$/.test(url.pathname);
   if (fixed) {
     e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(res => put(req, res))));
@@ -23,7 +23,7 @@ self.addEventListener('fetch', e => {
   e.respondWith(fetch(req).then(res => put(req, res)).catch(() => caches.match(req).then(r => r || caches.match('/'))));
 });
 
-// Aviso de cierre de caja (lo manda la función "aviso-cierre" de Supabase a las 9 pm)
+// Aviso de cierre de caja (lo manda el servidor a las 9 pm)
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { }
