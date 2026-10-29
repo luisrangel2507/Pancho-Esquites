@@ -54,3 +54,7 @@ Reglas:
 4. Probar ya (con la caja abierta): en SQL Editor
    `select net.http_post(url := fn_url, headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',cron_secret), body := '{}'::jsonb) from push_config;`
    `fn_url` se llena solo la primera vez que un teléfono activa los avisos.
+
+## Publicar en Railway (alternativa a Cloudflare)
+Railway → New Project → Deploy from GitHub repo → este repo y rama. Variables: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Settings → Networking → Generate Domain.
+El build (`npm run build`) y el servidor (`npm start`, `server.mjs`) ya están configurados en `railway.json`. La base de datos sigue en Supabase.
