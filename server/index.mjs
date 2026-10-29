@@ -131,4 +131,9 @@ process.on('unhandledRejection', e => console.error('Rechazo no manejado:', e));
   server.listen(PORT, '0.0.0.0', () => console.log(`Pancho Esquites en el puerto ${PORT}`));
 })().catch(e => { console.error('No se pudo arrancar:', e); process.exit(1); });
 
-for (const s of ['SIGTERM', 'SIGINT']) process.on(s, () => server.close(() => pool.end().finally(() => process.exit(0))));
+// Apagado limpio (Railway manda SIGTERM al reiniciar): deja de aceptar conexiones y sale; tope de 5 s
+for (const s of ['SIGTERM', 'SIGINT']) process.on(s, () => {
+  setTimeout(() => process.exit(0), 5000).unref();
+  server.close(() => pool.end().finally(() => process.exit(0)));
+  server.closeAllConnections?.();
+});

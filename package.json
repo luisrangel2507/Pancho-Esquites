@@ -8,16 +8,16 @@
     "start": "node server/index.mjs"
   },
   "dependencies": {
-    "next": "14.2.15",
+    "next": "14.2.35",
+    "pg": "8.13.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "pg": "8.13.1",
     "web-push": "3.6.7"
   },
   "devDependencies": {
-    "typescript": "5.6.3",
+    "@types/node": "20.16.11",
     "@types/react": "18.3.11",
-    "@types/node": "20.16.11"
+    "typescript": "5.6.3"
   },
   "engines": {
     "node": ">=20"
