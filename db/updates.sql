@@ -568,3 +568,21 @@ revoke execute on function new_device_code(text, uuid), device_code_bootstrap(te
 revoke execute on function device_code_create(text, text), device_activate(text), device_status(), device_list(text), device_remove(text, uuid) from anon, public;
 
 grant execute on function device_code_create(text, text), device_activate(text), device_status(), device_list(text), device_remove(text, uuid) to authenticated;
+
+-- Exportar ventas (una fila por producto vendido)
+create or replace function sales_export(p_admin_pin text, p_from timestamptz, p_to timestamptz, p_tz text default 'America/Mexico_City')
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare e employees;
+begin
+  e := check_pin(p_admin_pin);
+  if e.role <> 'admin' then raise exception 'Solo un admin puede exportar ventas'; end if;
+  return coalesce((select jsonb_agg(x order by x.id, x.n) from (
+    select s.id, to_char(s.created_at at time zone p_tz, 'YYYY-MM-DD') as fecha, to_char(s.created_at at time zone p_tz, 'HH24:MI') as hora,
+      em.name as empleado, s.pay_method as pago, s.voided as anulada, s.total_cents as total,
+      p.name as producto, si.qty as cantidad, si.unit_price_cents as precio, row_number() over (partition by s.id order by si.id) as n
+    from sales s join employees em on em.id = s.employee_id
+    join sale_items si on si.sale_id = s.id join products p on p.id = si.product_id
+    where s.created_at >= p_from and s.created_at < p_to) x), '[]'::jsonb);
+end $$;
+revoke execute on function sales_export(text, timestamptz, timestamptz, text) from anon, public;
+grant execute on function sales_export(text, timestamptz, timestamptz, text) to authenticated;

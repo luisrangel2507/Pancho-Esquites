@@ -93,6 +93,20 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
   };
   useEffect(() => { setData(null); load(); }, [period]);
 
+  async function exportar() {
+    const [from, to] = range(period);
+    const { data: rows, error } = await rpc('sales_export', { p_admin_pin: pin, p_from: from.toISOString(), p_to: to.toISOString() });
+    if (error) { setErr(error.message); return; }
+    const q = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
+    const head = ['Venta', 'Fecha', 'Hora', 'Empleado', 'Pago', 'Estado', 'Producto', 'Cantidad', 'Precio', 'Importe', 'Total venta'];
+    const lines = (rows as any[]).map(r => [r.id, r.fecha, r.hora, q(r.empleado), PAY[r.pago] ?? r.pago, r.anulada ? 'Anulada' : 'Pagada', q(r.producto), r.cantidad,
+      (r.precio / 100).toFixed(2), ((r.precio * r.cantidad) / 100).toFixed(2), r.n === 1 ? (r.total / 100).toFixed(2) : ''].join(','));
+    const blob = new Blob(['\uFEFF' + [head.join(','), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `ventas-${period}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
   async function anular(id: number) {
     if (!confirm(`¿Anular la venta #${id}? Se regresa el inventario.`)) return;
     const { error } = await rpc('void_sale', { p_admin_pin: pin, p_sale_id: id });
@@ -126,6 +140,7 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
       <div className="rep-tabs">
         {PERIODS.map(([k, l]) => <button key={k} className={k === period ? 'on' : ''} onClick={() => setPeriod(k)}>{l}</button>)}
       </div>
+      <button className="xl" onClick={exportar}>Descargar en Excel</button>
       {err && <p className="err">{err}</p>}
       {!data && !err && <p className="center">Cargando…</p>}
       {data && t && view && <>

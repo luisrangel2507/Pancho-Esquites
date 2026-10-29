@@ -429,3 +429,4 @@ body:has(.auth){background:var(--bg)}
 .vb em{color:var(--ink)}
 .hb-fill{background:linear-gradient(90deg,#C9A227,var(--gold))}
 .dl.up{color:#4FD08A}.dl.down{color:#FF8A7A}
+.xl{display:block;width:100%;margin:10px 0 0;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--surf);color:var(--ink);font-weight:600;font-size:14px}
