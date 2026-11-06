@@ -115,8 +115,8 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
     const { error } = await rpc('records_reset', { p_admin_pin: pin, p_confirm_pin: again });
     if (error) setErr(error.message); else { load(); loadLog(); }
   }
-  const [log, setLog] = useState<{ at: string; employee_name: string; detail: { ventas: number; cierres: number } }[]>([]);
-  const loadLog = async () => { const { data } = await rpc('audit_list', { p_admin_pin: pin }); if (Array.isArray(data)) setLog(data as any); };
+  const [log, setLog] = useState<{ at: string; employee_name: string; action: string; detail: { ventas: number; cierres: number } }[]>([]);
+  const loadLog = async () => { const { data } = await rpc('audit_list', { p_admin_pin: pin }); if (Array.isArray(data)) setLog((data as any[]).filter(l => l.action === 'borrar_registros')); };
   useEffect(() => { loadLog(); }, []);
 
   async function anular(id: number) {

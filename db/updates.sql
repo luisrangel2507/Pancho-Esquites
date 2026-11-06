@@ -628,3 +628,54 @@ begin
 end $$;
 revoke execute on function audit_list(text) from anon, public;
 grant execute on function audit_list(text) to authenticated;
+
+-- Solicitud de acceso: el teléfono nuevo pide permiso y el dueño lo aprueba desde su teléfono
+create table if not exists device_requests (
+  user_id uuid primary key,
+  number text not null,
+  created_at timestamptz not null default now()
+);
+alter table device_requests enable row level security;
+
+create or replace function device_request() returns text
+language plpgsql security definer set search_path = public, extensions as $$
+declare n text;
+begin
+  if auth.uid() is null then raise exception 'Sin sesión'; end if;
+  if exists(select 1 from devices where user_id = auth.uid()) then return null; end if;
+  delete from device_requests where created_at < now() - interval '10 minutes';
+  select number into n from device_requests where user_id = auth.uid();
+  if n is not null then return n; end if;
+  if (select count(*) from device_requests) >= 10 then raise exception 'Hay muchas solicitudes. Intenta en unos minutos.'; end if;
+  n := lpad((floor(random() * 10000))::int::text, 4, '0');
+  insert into device_requests(user_id, number) values (auth.uid(), n);
+  return n;
+end $$;
+
+create or replace function device_requests_list(p_admin_pin text)
+returns table(user_id uuid, number text, created_at timestamptz)
+language plpgsql security definer set search_path = public, extensions as $$
+declare e employees;
+begin
+  e := staff_owner(p_admin_pin);
+  delete from device_requests r where r.created_at < now() - interval '10 minutes';
+  return query select r.user_id, r.number, r.created_at from device_requests r order by r.created_at;
+end $$;
+
+create or replace function device_request_answer(p_admin_pin text, p_user uuid, p_label text, p_ok boolean) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare e employees;
+begin
+  e := staff_owner(p_admin_pin);
+  if p_ok then
+    if not exists(select 1 from device_requests where user_id = p_user and created_at > now() - interval '10 minutes') then
+      raise exception 'La solicitud ya venció';
+    end if;
+    insert into devices(user_id, label) values (p_user, coalesce(nullif(trim(p_label), ''), 'Caja')) on conflict (user_id) do nothing;
+    insert into audit_log (employee_id, employee_name, action, detail) values (e.id, e.name, 'aprobar_telefono', jsonb_build_object('label', p_label));
+  end if;
+  delete from device_requests where user_id = p_user;
+end $$;
+
+revoke execute on function device_request(), device_requests_list(text), device_request_answer(text, uuid, text, boolean) from anon, public;
+grant execute on function device_request(), device_requests_list(text), device_request_answer(text, uuid, text, boolean) to authenticated;

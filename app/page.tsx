@@ -34,8 +34,16 @@ export default function Caja() {
   const retryRef = useRef<() => void>(() => {});
   const session = dev === 'ready';
   const [phones, setPhones] = useState(false);
+  const [phoneReq, setPhoneReq] = useState(0); // solicitudes de teléfonos nuevos esperando permiso
   const [emp, setEmp] = useState<Employee | null>(null);
   const [pin, setPin] = useState(''); // pase de turno (o PIN si la base es vieja); solo en memoria mientras dura el turno
+  useEffect(() => {
+    if (!emp || emp.role !== 'admin' || !pin) { setPhoneReq(0); return; }
+    let on = true;
+    const check = async () => { const { data } = await rpc('device_requests_list', { p_admin_pin: pin }); if (on) setPhoneReq(Array.isArray(data) ? data.length : 0); };
+    check(); const t = setInterval(check, 15000);
+    return () => { on = false; clearInterval(t); };
+  }, [emp, pin]);
   const [cats, setCats] = useState<Category[]>([]);
   const [prods, setProds] = useState<Product[]>([]);
   const [cur, setCur] = useState<number | null>(null);
@@ -199,13 +207,15 @@ export default function Caja() {
           {caja && caja !== 'na' && caja.open && <button onClick={() => { setClosing(true); setMenu(false); }}>Cerrar caja</button>}
           {emp.role === 'admin' && <button onClick={() => { setReports(true); setMenu(false); }}>Ventas e informes</button>}
           {emp.role === 'admin' && <button onClick={() => { setStaff(true); setMenu(false); }}>Empleados</button>}
-          {emp.role === 'admin' && <button onClick={() => { setPhones(true); setMenu(false); }}>Teléfonos</button>}
+          {emp.role === 'admin' && <button onClick={() => { setPhones(true); setMenu(false); }}>Teléfonos{phoneReq > 0 ? ` (${phoneReq})` : ''}</button>}
           {typeof Notification !== 'undefined' && Notification.permission === 'default' &&
             <button onClick={() => { setMenu(false); askPush(pin); }}>Activar avisos de cierre</button>}
           <button className="mx" onClick={() => setMenu(false)}>Cerrar menú</button>
         </div>}
       </header>
       <main className="sheetbody">
+        {phoneReq > 0 && <button className="remind phone-req" onClick={() => setPhones(true)}>
+          <span>📱</span><b>Un teléfono está pidiendo entrar a la caja</b><em>Ver ›</em></button>}
         {caja && caja !== 'na' && caja.open && !caja.stale && lateHour && <button className="remind" onClick={() => setClosing(true)}>
           <span>🌙</span><b>Ya son las 9 pm: no olvides cerrar la caja</b><em>Cerrar caja ›</em></button>}
         <div className="chips">

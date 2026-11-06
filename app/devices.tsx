@@ -20,6 +20,30 @@ export function ActivateDevice({ onDone }: { onDone: () => void }) {
     if (!data) return setErr('Código incorrecto o vencido. Pide uno nuevo.');
     onDone();
   }
+  const [num, setNum] = useState('');
+  async function ask() {
+    setErr('');
+    const { data, error } = await api.rpc('device_request');
+    if (error) return setErr(error.message);
+    if (data) setNum(data as string); else onDone();
+  }
+  useEffect(() => {
+    if (!num) return;
+    const t = setInterval(async () => {
+      const { data } = await api.rpc('device_status');
+      if (data) onDone();
+    }, 3000);
+    return () => clearInterval(t);
+  }, [num]);
+  if (num) return <div className="pin">
+    <div className="hero"><img src="/logo.webp" alt="Pancho Esquites" /></div>
+    <h1 className="ptitle">Esperando <span>permiso</span></h1>
+    <p className="psub act-sub">Dile al dueño que abra la app y apruebe este número:</p>
+    <div className="req-num">{num}</div>
+    <div className="spin" />
+    <p className="psub">Se activa solo cuando lo apruebe. Vence en 10 minutos.</p>
+    <button className="regv act" onClick={() => setNum('')}>Cancelar</button>
+  </div>;
   return <div className="pin">
     <div className="hero"><img src="/logo.webp" alt="Pancho Esquites" /></div>
     <h1 className="ptitle">Activar <span>teléfono</span></h1>
@@ -28,6 +52,7 @@ export function ActivateDevice({ onDone }: { onDone: () => void }) {
       inputMode="text" onChange={e => setCode(fmt(e.target.value))} onKeyDown={e => e.key === 'Enter' && code.length === 9 && go()} />
     <p className="err">{err}</p>
     <button className="regv act" disabled={busy || code.length !== 9} onClick={go}>{busy ? 'Activando…' : 'Activar'}</button>
+    <button className="lnk ask" onClick={ask}>No tengo código: pedir permiso al dueño</button>
   </div>;
 }
 
@@ -41,17 +66,26 @@ export function Connecting({ err, onRetry }: { err: string; onRetry?: () => void
   </div>;
 }
 
+type Req = { user_id: string; number: string; created_at: string };
 type Dev = { user_id: string; label: string; created_at: string; this_one: boolean };
 
 // Para el dueño: ver teléfonos activados, quitarlos y generar códigos para activar otros
 export function DevicesSheet({ pin, onClose }: { pin: string; onClose: () => void }) {
   const [list, setList] = useState<Dev[]>([]); const [err, setErr] = useState('');
   const [label, setLabel] = useState(''); const [code, setCode] = useState<{ code: string; expires_at: string } | null>(null);
+  const [reqs, setReqs] = useState<Req[]>([]);
   const load = async () => {
     const { data, error } = await rpc('device_list', { p_admin_pin: pin });
     if (error) setErr(error.message); else setList(data ?? []);
+    const r = await rpc('device_requests_list', { p_admin_pin: pin });
+    setReqs((r.data ?? []) as Req[]);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, []);
+  async function answer(r: Req, ok: boolean) {
+    setErr('');
+    const { error } = await rpc('device_request_answer', { p_admin_pin: pin, p_user: r.user_id, p_label: `Caja ${list.length + 1}`, p_ok: ok });
+    if (error) setErr(error.message); else load();
+  }
   async function create() {
     setErr('');
     const { data, error } = await rpc('device_code_create', { p_admin_pin: pin, p_label: label || `Caja ${list.length + 1}` });
@@ -71,6 +105,12 @@ export function DevicesSheet({ pin, onClose }: { pin: string; onClose: () => voi
       <div className="st-t"><h2>Teléfonos</h2><small>Teléfonos que pueden usar la caja. Quita los que ya no uses.</small></div>
       <button className="st-x" aria-label="Cerrar" onClick={onClose}>×</button>
     </div>
+    {reqs.map(r => <div className="req-card" key={r.user_id}>
+      <b>Un teléfono quiere entrar</b>
+      <small>¿El número en ese teléfono es el mismo? Apruébalo solo si estás esperando uno.</small>
+      <div className="req-num sm">{r.number}</div>
+      <div className="quick"><button className="on" onClick={() => answer(r, true)}>Aprobar</button><button onClick={() => answer(r, false)}>Rechazar</button></div>
+    </div>)}
     <div className="st-list">
       {list.map(d => <div className="st-row" key={d.user_id}>
         <span className="av green">📱</span>

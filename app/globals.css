@@ -443,3 +443,11 @@ body:has(.auth){background:var(--bg)}
 .plus{width:clamp(26px,8vw,31px);height:clamp(26px,8vw,31px);flex:0 0 clamp(26px,8vw,31px)}
 .app{padding-bottom:calc(120px + env(safe-area-inset-bottom))}
 .xl.danger{margin-top:18px;color:#FF8A7A;border-color:#7A2A26;background:transparent}
+
+/* ───── Solicitud de acceso de teléfono ───── */
+.req-num{font-family:var(--f-osw),sans-serif;font-size:64px;letter-spacing:10px;color:var(--pin-gold);margin:6px 0 10px;text-align:center}
+.req-num.sm{font-size:42px;letter-spacing:8px;color:var(--gold);margin:4px 0}
+.req-card{background:#2B2614;border:1.5px solid var(--gold);border-radius:14px;padding:12px 14px;margin:0 0 12px;text-align:center}
+.req-card small{display:block;color:var(--muted);font-size:13px}
+.lnk.ask{display:block;margin:16px auto 0;color:var(--gold);text-decoration:underline}
+.remind.phone-req{background:#7A5A00;animation:none}
