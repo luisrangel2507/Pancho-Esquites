@@ -587,14 +587,44 @@ end $$;
 revoke execute on function sales_export(text, timestamptz, timestamptz, text) from anon, public;
 grant execute on function sales_export(text, timestamptz, timestamptz, text) to authenticated;
 
--- Borrar todos los registros de ventas y cajas (solo el dueño, nunca el PIN de soporte)
-create or replace function records_reset(p_admin_pin text) returns void
+-- Bitácora: queda registro de quién borró y cuándo (no se borra con los registros)
+create table if not exists audit_log (
+  id bigserial primary key,
+  at timestamptz not null default now(),
+  employee_id uuid,
+  employee_name text not null,
+  action text not null,
+  detail jsonb not null default '{}'
+);
+alter table audit_log enable row level security;
+
+-- Borrar todos los registros de ventas y cajas: solo el dueño, nunca el PIN de soporte.
+-- Pide el PIN otra vez (p_confirm_pin) y deja constancia en la bitácora.
+drop function if exists records_reset(text);
+create or replace function records_reset(p_admin_pin text, p_confirm_pin text) returns void
 language plpgsql security definer set search_path = public, extensions as $$
-declare e employees;
+declare e employees; c employees; ns int; nc int;
 begin
   e := staff_owner(p_admin_pin);
+  c := pin_verify(coalesce(p_confirm_pin, ''));
+  if c.id is null or c.id <> e.id then raise exception 'PIN incorrecto'; end if;
+  select count(*) into ns from sales;
+  select count(*) into nc from cash_sessions;
+  insert into audit_log (employee_id, employee_name, action, detail)
+    values (e.id, e.name, 'borrar_registros', jsonb_build_object('ventas', ns, 'cierres', nc));
   truncate sales, cash_sessions restart identity cascade;
   delete from pin_attempts;
 end $$;
-revoke execute on function records_reset(text) from anon, public;
-grant execute on function records_reset(text) to authenticated;
+revoke execute on function records_reset(text, text) from anon, public;
+grant execute on function records_reset(text, text) to authenticated;
+
+create or replace function audit_list(p_admin_pin text) returns jsonb
+language plpgsql security definer set search_path = public, extensions as $$
+declare e employees;
+begin
+  e := check_pin(p_admin_pin);
+  if e.role <> 'admin' then raise exception 'Solo un admin puede ver la bitácora'; end if;
+  return coalesce((select jsonb_agg(x order by x.at desc) from (select at, employee_name, action, detail from audit_log order by at desc limit 20) x), '[]'::jsonb);
+end $$;
+revoke execute on function audit_list(text) from anon, public;
+grant execute on function audit_list(text) to authenticated;

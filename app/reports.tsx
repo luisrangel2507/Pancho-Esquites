@@ -108,10 +108,16 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
   }
 
   async function borrarTodo() {
-    if (prompt('Se borran TODAS las ventas y cierres de caja. No se puede deshacer.\nEscribe BORRAR para confirmar:') !== 'BORRAR') return;
-    const { error } = await rpc('records_reset', { p_admin_pin: pin });
-    if (error) setErr(error.message); else load();
+    if (!confirm('¿Borrar TODAS las ventas y cierres de caja?\nNo se puede deshacer.')) return;
+    if (prompt('Segunda confirmación.\nEscribe BORRAR para continuar:') !== 'BORRAR') return;
+    const again = prompt('Tercera confirmación.\nEscribe tu PIN otra vez:');
+    if (!again) return;
+    const { error } = await rpc('records_reset', { p_admin_pin: pin, p_confirm_pin: again });
+    if (error) setErr(error.message); else { load(); loadLog(); }
   }
+  const [log, setLog] = useState<{ at: string; employee_name: string; detail: { ventas: number; cierres: number } }[]>([]);
+  const loadLog = async () => { const { data } = await rpc('audit_list', { p_admin_pin: pin }); if (Array.isArray(data)) setLog(data as any); };
+  useEffect(() => { loadLog(); }, []);
 
   async function anular(id: number) {
     if (!confirm(`¿Anular la venta #${id}? Se regresa el inventario.`)) return;
@@ -202,6 +208,10 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
             <span><b>{mx(r.total_cents)}</b>{!r.voided && <><br /><button className="lnk" onClick={() => anular(r.id)}>Anular</button></>}</span>
           </div>)}
         </Sec>
+        {log.length > 0 && <Sec ic={R.doc} title="Bitácora de borrados">
+          {log.map((l, i) => <div className="row" key={i}><span>{new Date(l.at).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}<br /><small>{l.employee_name}</small></span>
+            <span className="muted">{l.detail.ventas} ventas · {l.detail.cierres} cierres</span></div>)}
+        </Sec>}
         <button className="xl danger" onClick={borrarTodo}>Borrar todos los registros</button>
       </>}
     </main>
