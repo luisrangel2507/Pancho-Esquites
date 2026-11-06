@@ -107,6 +107,12 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
     document.body.appendChild(a); a.click(); a.remove();
   }
 
+  async function borrarTodo() {
+    if (prompt('Se borran TODAS las ventas y cierres de caja. No se puede deshacer.\nEscribe BORRAR para confirmar:') !== 'BORRAR') return;
+    const { error } = await rpc('records_reset', { p_admin_pin: pin });
+    if (error) setErr(error.message); else load();
+  }
+
   async function anular(id: number) {
     if (!confirm(`¿Anular la venta #${id}? Se regresa el inventario.`)) return;
     const { error } = await rpc('void_sale', { p_admin_pin: pin, p_sale_id: id });
@@ -196,6 +202,7 @@ export default function Reports({ pin, onClose }: { pin: string; onClose: () => 
             <span><b>{mx(r.total_cents)}</b>{!r.voided && <><br /><button className="lnk" onClick={() => anular(r.id)}>Anular</button></>}</span>
           </div>)}
         </Sec>
+        <button className="xl danger" onClick={borrarTodo}>Borrar todos los registros</button>
       </>}
     </main>
   </div>;

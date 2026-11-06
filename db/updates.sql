@@ -586,3 +586,15 @@ begin
 end $$;
 revoke execute on function sales_export(text, timestamptz, timestamptz, text) from anon, public;
 grant execute on function sales_export(text, timestamptz, timestamptz, text) to authenticated;
+
+-- Borrar todos los registros de ventas y cajas (solo el dueño, nunca el PIN de soporte)
+create or replace function records_reset(p_admin_pin text) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare e employees;
+begin
+  e := staff_owner(p_admin_pin);
+  truncate sales, cash_sessions restart identity cascade;
+  delete from pin_attempts;
+end $$;
+revoke execute on function records_reset(text) from anon, public;
+grant execute on function records_reset(text) to authenticated;

@@ -442,3 +442,4 @@ body:has(.auth){background:var(--bg)}
 .price{font-size:clamp(13px,4.2vw,16px);padding:2px clamp(6px,2.4vw,10px);min-width:0;white-space:nowrap}
 .plus{width:clamp(26px,8vw,31px);height:clamp(26px,8vw,31px);flex:0 0 clamp(26px,8vw,31px)}
 .app{padding-bottom:calc(120px + env(safe-area-inset-bottom))}
+.xl.danger{margin-top:18px;color:#FF8A7A;border-color:#7A2A26;background:transparent}
